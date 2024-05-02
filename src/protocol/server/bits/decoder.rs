@@ -17,7 +17,7 @@ impl InDecoder {
     }
 
     pub fn read_data(&mut self, bits: u8) -> Result<u32, Error> {
-        if bits <= 32 {
+        if bits > 32 {
             return Err(Error {
                 code: 0b1000,
                 message: "Maximum of 2^32 bits allowed".to_string(),
