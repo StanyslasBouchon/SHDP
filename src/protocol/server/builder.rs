@@ -27,7 +27,7 @@ impl OutBuilder {
 
         let data_size = shdp_frame.get_builder().frame.len();
 
-        if data_size > 2u32.pow(32) as usize {
+        if data_size > (1 << 32) {
             return Err(Error {
                 code: 0b1000,
                 message: "Maximum of 2^32 bits allowed".to_string(),
