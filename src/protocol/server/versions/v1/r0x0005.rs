@@ -55,13 +55,9 @@ impl EventDecoder for InteractionRequest {
             data.push(byte);
         }
 
-        let string = String::from_utf8(data).map_err(|_| Error {
-            code: 400,
-            message: "Invalid UTF-8 string".to_string(),
-            kind: ErrorKind::BadRequest,
-        })?;
-
+        let string: String = data.iter().map(|&b| b as char).collect();
         let parts: Vec<&str> = string.split('\x00').collect();
+
         self.function_name = parts[0].to_string();
         self.table = parts[1].to_string();
         self.object_id = parts[2].parse().ok();
