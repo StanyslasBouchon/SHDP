@@ -15,6 +15,7 @@ impl InBuilder {
     }
 
     #[cfg(feature = "debug")]
+    #[allow(dead_code)]
     pub fn print_frame(&self) {
         println!("Frame size: {}", self.frame.len());
         for bit in &self.frame {
@@ -38,11 +39,6 @@ impl InBuilder {
         }
 
         Ok(self)
-    }
-
-    pub fn add_bitvec(&mut self, mut data: BitVec<u32, Lsb0>) -> &mut Self {
-        self.frame.append(&mut data);
-        self
     }
 
     pub fn add_bytes(&mut self, bytes: &[u8]) -> Result<&mut Self, Error> {

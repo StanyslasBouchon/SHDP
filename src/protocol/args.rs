@@ -5,6 +5,7 @@ use crate::protocol::errors::Error;
 
 use super::errors::ErrorKind;
 
+#[allow(dead_code)]
 pub enum Arg {
     Text(String),
     U8(u8),
@@ -18,6 +19,7 @@ pub enum Arg {
     OptionValue(Option<Value>),
 }
 
+#[allow(dead_code)]
 impl Arg {
     pub fn from_string(value: &str) -> Self {
         if value.starts_with("0x") {

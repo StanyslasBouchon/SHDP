@@ -57,6 +57,7 @@ impl EventRegistry {
         self.events.insert((version, event_code), event);
     }
 
+    #[allow(dead_code)]
     pub fn add_listener(
         &mut self,
         version: u8,

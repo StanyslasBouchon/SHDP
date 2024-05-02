@@ -47,8 +47,4 @@ impl InDecoder {
 
         Ok(self.frame[from..bits].to_bitvec())
     }
-
-    pub fn get_position(&self) -> usize {
-        self.position
-    }
 }

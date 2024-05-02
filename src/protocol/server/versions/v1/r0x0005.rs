@@ -16,7 +16,7 @@ pub struct InteractionRequest {
     decoder: InDecoder,
     pub request_id: u64,
     pub function_name: String,
-    pub table: String,
+    pub parent_name: String,
     pub object_id: Option<i32>,
     pub params: Option<Value>,
     pub token: Option<String>,
@@ -31,7 +31,7 @@ impl InteractionRequest {
         InteractionRequest {
             decoder,
             request_id: 0,
-            table: String::new(),
+            parent_name: String::new(),
             function_name: String::new(),
             object_id: None,
             params: None,
@@ -59,7 +59,7 @@ impl EventDecoder for InteractionRequest {
         let parts: Vec<&str> = string.split('\x00').collect();
 
         self.function_name = parts[0].to_string();
-        self.table = parts[1].to_string();
+        self.parent_name = parts[1].to_string();
         self.object_id = parts[2].parse().ok();
         self.params = serde_json::from_str(parts[3]).ok();
         self.token = parts.get(4).map(|s| s.to_string());
@@ -72,7 +72,7 @@ impl EventDecoder for InteractionRequest {
             });
         }
 
-        if self.table.is_empty() {
+        if self.parent_name.is_empty() {
             return Err(Error {
                 code: 400,
                 message: "Table name is empty".to_string(),
@@ -83,7 +83,7 @@ impl EventDecoder for InteractionRequest {
         if cfg!(feature = "debug") {
             println!(
                 "[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;125m0x0005\x1b[0m: function_name: {}, table: {}, object_id: {:?}, params: {:?}, token: {:?}",
-                self.function_name, self.table, self.object_id, self.params, self.token
+                self.function_name, self.parent_name, self.object_id, self.params, self.token
             );
         }
 
