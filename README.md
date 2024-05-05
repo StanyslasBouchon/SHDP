@@ -8,7 +8,7 @@ Basic implementations are onto 2 (two) websites:
 Those websites use SHDP to retrieve HTML, CSS or JS content dynamically while the user is browsing the website.
 
 > [!NOTE]
-> SHDP will not try to replace HTTP not TCP protocols. It is just a way to send data in a compressed way.
+> SHDP will not try to replace HTTP nor TCP protocols. It is just a way to send data in a compressed way.
 
 > [!IMPORTANT]
 > SHDP is not standardized yet. It is still in development.

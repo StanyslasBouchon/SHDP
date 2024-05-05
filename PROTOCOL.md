@@ -1,22 +1,3 @@
-<style>
-    .black { color: rgb(0, 0, 0); }
-    .red { color: rgb(205, 49, 49); }
-    .green { color: rgb(13, 188, 121); }
-    .yellow { color: rgb(229, 229, 16); }
-    .blue { color: rgb(36, 114, 200); }
-    .magenta { color: rgb(188, 63, 188); }
-    .cyan { color: rgb(17, 168, 205); }
-    .white { color: rgb(229, 229, 229); }
-    .bright-black { color: rgb(102, 102, 102); }
-    .bright-red { color: rgb(241, 76, 76); }
-    .bright-green { color: rgb(35, 209, 139); }
-    .bright-yellow { color: rgb(245, 245, 67); }
-    .bright-blue { color: rgb(59, 142, 234); }
-    .bright-magenta { color: rgb(214, 112, 214); }
-    .bright-cyan { color: rgb(41, 184, 229); }
-    .bright-white { color: rgb(242, 242, 242); }
-</style>
-
 # SHDP Binary Explanation
 ## Summary
 
@@ -47,8 +28,8 @@ Let's take an example with the following data:
 * SHDP data: `Hello, World!` (ASCII)
 
 The binary representation of the frame will be:
-<pre><span class="bright-black">00000000</span> <span class="blue">01</span> <span class="magenta">00 01</span> <span class="yellow">00 00 00 68</span> <span class="bright-black">48 65 6C 6C 6F 2C 20 57 6F ......hHello, Wo
-00000001 72 6C 64 21                                     rld!</span>
+<pre><span style="color: rgb(102, 102, 102);">00000000</span> <span style="color: rgb(36, 114, 200)">01</span> <span class="magenta">00 01</span> <span class="yellow">00 00 00 68</span> <span class="bright-black">48 65 6C 6C 6F 2C 20 57 6F ......hHello, Wo
+00000010 72 6C 64 21                                     rld!</span>
 </pre>
 
 In blue (`rgb(36, 114, 200)`), the version.<br>
