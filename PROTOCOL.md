@@ -28,13 +28,10 @@ Let's take an example with the following data:
 * SHDP data: `Hello, World!` (ASCII)
 
 The binary representation of the frame will be:
-<pre><span style="color: rgb(102, 102, 102);">00000000</span> <span style="color: rgb(36, 114, 200)">01</span> <span class="magenta">00 01</span> <span class="yellow">00 00 00 68</span> <span class="bright-black">48 65 6C 6C 6F 2C 20 57 6F ......hHello, Wo
-00000010 72 6C 64 21                                     rld!</span>
-</pre>
-
-In blue (`rgb(36, 114, 200)`), the version.<br>
-In magenta (`rgb(188, 63, 188)`), the event code.<br>
-In yellow (`rgb(229, 229, 16)`), the data length.
+```plaintext
+00000000 01 00 01 00 00 00 68 48 65 6C 6C 6F 2C 20 57 6F ......hHello, Wo
+00000010 72 6C 64 21                                     rld!
+```
 
 
 ## Event codes
@@ -117,13 +114,11 @@ The first thing is to encode the tag name:
 ```html
 <p
 ```
-In bright red (`rgb(241, 76, 76)`), the operating codes.<br>
-In blue (`rgb(36, 114, 200)`), the encoded letters.<br>
-In bright green (`rgb(35, 209, 139)`), the UTF-8 chains.
-In bright yellow (`rgb(245, 245, 67)`), the UTF-8 chain length.
 
 The encoded tag name will be:
-<pre><span class="bright-red">00000 10000</span> <span class="blue">00001</span></pre>
+```plaintext
+00000000: 00000 10000 00001
+```
 
 The next step is to encode the attributes:
 ```html
@@ -131,10 +126,12 @@ class="hello">
 ```
 
 The encoded attributes will be:
-<pre><span class="bright-red">00000 10001</span> <span class="blue">00010 00011 00100 00100</span>
-<span class="bright-red">00000 00000</span> <span class="bright-yellow">00000 00000 00101</span> <span class="bright-green">01101
-00001 10010 10110 11000 11011 00011
-01111</span> <span class="bright-red">00000 11000</span></pre>
+```plaintext
+00000000: 00000 10001 00010 00011 00100 00100
+00000020: 00000 00000 00000 00000 00101 01101
+00000030: 00001 10010 10110 11000 11011 00011
+00000040: 01111 00000 11000
+```
 
 The next step is to encode the inner HTML:
 ```html
@@ -142,17 +139,18 @@ The next step is to encode the inner HTML:
 ```
 
 The encoded inner HTML will be:
-<pre><span class="bright-red">00000 10000</span> <span class="blue">00110</span> <span class="bright-red">00000 11000 00000
-00000</span> <span class="bright-yellow">00000 00000 00101</span> <span class="bright-green">01001 00001
-10010 10110 11000 11011 00011 01111</span>
-<span class="bright-red">00000 11001 00000 00000</span> <span class="bright-yellow">00000 00000
-00101</span> <span class="bright-green">00101 10000 10000 0</span><span class="bright-red">0000 01000
-0</span><span class="blue">0011 1</span><span class="bright-red">0000 01100 00000 00000 0</span><span class="bright-yellow">0000
-00000 00010 1</span><span class="bright-green">0101 01110 11011 11011
-10010 01101 10001 10010 0</span><span class="bright-red">0000 01100
-10000 00000 0</span><span class="bright-yellow">0000 00000 00000 1</span><span class="bright-green">0010
-0001</span><span class="bright-red">0 00001 1001</span>
-</pre>
+```plaintext
+00000000: 00000 10000 00110 00000 11000 00000
+00000010: 00000 00000 00000 00101 01001 00001
+00000020: 10010 10110 11000 11011 00011 01111
+00000030: 00000 11001 00000 00000 00000 00000
+00000040: 00101 00101 10000 10000 00000 01000
+00000050: 00011 10000 01100 00000 00000 00000
+00000060: 00000 00010 10101 01110 11011 11011
+00000070: 10010 01101 10001 10010 00000 01100
+00000080: 10000 00000 00000 00000 00000 10010
+00000090: 00010 00001 1001
+```
 
 The last step is to encode the second tag:
 ```html
@@ -161,28 +159,31 @@ The last step is to encode the second tag:
 ```
 
 The encoded tag will be:
-<pre><span class="bright-red">00000 00000</span> <span class="bright-yellow">00000 00000 00001</span> <span class="bright-green">00001
-010</span><span class="bright-red">00 00010 000</span><span class="blue">01 00001 001</span><span class="bright-red">00 00011
-00000 00011 001</span>
-</pre>
+```plaintext
+00000000: 00000 00000 00000 00000 00001 00001
+00000010: 01000 00010 00001 00001 00100 00011
+00000020: 00000 00011 001
+```
 
 So, the final encoded HTML file will be:
-<pre><span class="bright-red">00000 10000</span> <span class="blue">00001</span> <span class="bright-red">00000 10001</span> <span class="blue">00010
-00011 00100 00100</span> <span class="bright-red">00000 00000</span> <span class="bright-yellow">00000
-00000 00101</span> <span class="bright-green">01101 00001 10010 10110
-11000 11011 00011 01111</span> <span class="bright-red">00000 11000</span>
-<span class="bright-red">00000 10000</span> <span class="blue">00110</span> <span class="bright-red">00000 11000 00000
-00000</span> <span class="bright-yellow">00000 00000 00101</span> <span class="bright-green">01001 00001
-10010 10110 11000 11011 00011 01111</span>
-<span class="bright-red">00000 11001 00000 00000</span> <span class="bright-yellow">00000 00000
-00101</span> <span class="bright-green">00101 10000 10000 0</span><span class="bright-red">0000 01000
-0</span><span class="blue">0011 1</span><span class="bright-red">0000 01100 00000 00000 0</span><span class="bright-yellow">0000
-00000 00010 1</span><span class="bright-green">0101 01110 11011 11011
-10010 01101 10001 10010 0</span><span class="bright-red">0000 01100
-10000 00000 0</span><span class="bright-yellow">0000 00000 00000 1</span><span class="bright-green">0010
-0001</span><span class="bright-red">0 00001 1001</span><span class="bright-red">0 00000 0000</span><span class="bright-yellow">0 00000 
-00000 0001</span><span class="bright-green">0 00010 10</span><span class="bright-red">000 00100 00</span><span class="blue">010 
-0001 001</span><span class="bright-red">000 00110 00000 00110 01</span><span class="bright-black">000</span></pre>
+```plaintext
+00000000: 00000 10000 00001 00000 10001 00010
+00000010: 00011 00100 00100 00000 00000 00000
+00000020: 00000 00101 01101 00001 10010 10110
+00000030: 11000 11011 00011 01111 00000 11000
+00000040: 00000 10000 00110 00000 11000 00000
+00000050: 00000 00000 00000 00101 01001 00001
+00000060: 10010 10110 11000 11011 00011 01111
+00000070: 00000 11001 00000 00000 00000 00000
+00000080: 00101 00101 10000 10000 00000 01000
+00000090: 00011 10000 01100 00000 00000 00000
+000000A0: 00000 00010 10101 01110 11011 11011
+000000B0: 10010 01101 10001 10010 00000 01100
+000000C0: 10000 00000 00000 00000 00000 10010
+000000D0: 00010 00001 10010 00000 00000 00000 
+000000E0: 00000 00010 00010 10000 00100 00010 
+000000F0: 0001 001000 00110 00000 00110 01000
+```
 
 Or in hexadecimal:
 ```plaintext
