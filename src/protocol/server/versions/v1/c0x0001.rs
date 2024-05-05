@@ -1,16 +1,17 @@
 use std::{fs::File, io::Read, path::Path, str::from_utf8};
 
+use bitvec::order::Lsb0;
 use ego_tree::NodeRef;
 use html_minifier::HTMLMinifier;
 use scraper::{Html, Node};
 
 use crate::protocol::{
     errors::{Error, ErrorKind},
-    server::{bits::builder::InBuilder, event::EventBuilder},
+    managers::{bits::encoder::BitEncoder, event::EventEncoder},
 };
 
 pub struct HtmlFileResponse {
-    builder: InBuilder,
+    encoder: BitEncoder<Lsb0>,
     path: String,
 }
 
@@ -24,7 +25,7 @@ impl HtmlFileResponse {
         }
 
         HtmlFileResponse {
-            builder: InBuilder::new(),
+            encoder: BitEncoder::<Lsb0>::new(),
             path,
         }
     }
@@ -49,9 +50,9 @@ impl HtmlFileResponse {
             None => return Ok(()),
         }
 
-        self.builder.add_data(0, 10)?;
-        self.builder.add_data(text.len() as u32, 15)?;
-        self.builder.add_bytes(text.as_bytes())?;
+        self.encoder.add_data(0, 10)?;
+        self.encoder.add_data(text.len() as u32, 15)?;
+        self.encoder.add_bytes(text.as_bytes())?;
 
         Ok(())
     }
@@ -73,19 +74,19 @@ impl HtmlFileResponse {
 
                 open_elements.push(element_name.clone().to_owned());
 
-                self.builder.add_data(16, 10)?;
-                self.builder.add_bytes(element_name.as_bytes())?;
+                self.encoder.add_data(16, 10)?;
+                self.encoder.add_bytes(element_name.as_bytes())?;
 
                 if element.attrs.len() > 0 {
-                    self.builder.add_data(17, 10)?;
+                    self.encoder.add_data(17, 10)?;
 
                     for (name, value) in element.attrs() {
-                        self.builder.add_bytes(name.as_bytes())?;
+                        self.encoder.add_bytes(name.as_bytes())?;
                         self.append_text(node, &value.to_string())?;
                     }
                 }
 
-                self.builder.add_data(24, 10)?;
+                self.encoder.add_data(24, 10)?;
 
                 for child in node.children() {
                     self.process_node(child, open_elements)?;
@@ -93,7 +94,7 @@ impl HtmlFileResponse {
 
                 open_elements.pop();
 
-                self.builder.add_data(25, 10)?;
+                self.encoder.add_data(25, 10)?;
             }
             Node::Text(text) => {
                 self.append_text(node, &text.to_string())?;
@@ -105,8 +106,8 @@ impl HtmlFileResponse {
     }
 }
 
-impl EventBuilder for HtmlFileResponse {
-    fn construct(&mut self) -> Result<(), Error> {
+impl EventEncoder<Lsb0> for HtmlFileResponse {
+    fn encode(&mut self) -> Result<(), Error> {
         let html_file_name = Path::new(self.path.as_str())
             .file_name()
             .ok_or(Error {
@@ -122,8 +123,8 @@ impl EventBuilder for HtmlFileResponse {
             })?
             .to_string();
 
-        self.builder.add_bytes(html_file_name.as_bytes())?;
-        self.builder.add_data(0, 8)?;
+        self.encoder.add_bytes(html_file_name.as_bytes())?;
+        self.encoder.add_data(0, 8)?;
 
         let minified_html = get_minified_html_file(self.path.clone())?;
         let document = Html::parse_fragment(&minified_html);
@@ -136,8 +137,8 @@ impl EventBuilder for HtmlFileResponse {
         Ok(())
     }
 
-    fn get_builder(&self) -> &InBuilder {
-        &self.builder
+    fn get_encoder(&self) -> &BitEncoder<Lsb0> {
+        &self.encoder
     }
 
     fn get_event(&self) -> u16 {

@@ -1,10 +1,12 @@
+use bitvec::order::Lsb0;
+
 use crate::protocol::{
     errors::Error,
-    server::{bits::builder::InBuilder, event::EventBuilder},
+    managers::{bits::encoder::BitEncoder, event::EventEncoder},
 };
 
 pub struct ErrorResponse {
-    builder: InBuilder,
+    encoder: BitEncoder<Lsb0>,
     error: Error,
 }
 
@@ -18,25 +20,25 @@ impl ErrorResponse {
         }
 
         ErrorResponse {
-            builder: InBuilder::new(),
+            encoder: BitEncoder::<Lsb0>::new(),
             error,
         }
     }
 }
 
-impl EventBuilder for ErrorResponse {
-    fn construct(&mut self) -> Result<(), Error> {
-        match self.builder.add_data(self.error.code, 16) {
+impl EventEncoder<Lsb0> for ErrorResponse {
+    fn encode(&mut self) -> Result<(), Error> {
+        match self.encoder.add_data(self.error.code, 16) {
             Err(e) => panic!("Error adding data: {}", e),
             _ => (),
         }
 
-        match self.builder.add_data(0, 8) {
+        match self.encoder.add_data(0, 8) {
             Err(e) => panic!("Error adding data: {}", e),
             _ => (),
         }
 
-        match self.builder.add_bytes(self.error.message.as_bytes()) {
+        match self.encoder.add_bytes(self.error.message.as_bytes()) {
             Err(e) => panic!("Error adding bytes: {}", e),
             _ => (),
         }
@@ -44,8 +46,8 @@ impl EventBuilder for ErrorResponse {
         Ok(())
     }
 
-    fn get_builder(&self) -> &InBuilder {
-        &self.builder
+    fn get_encoder(&self) -> &BitEncoder<Lsb0> {
+        &self.encoder
     }
 
     fn get_event(&self) -> u16 {

@@ -1,7 +1,12 @@
-mod protocol;
+pub(crate) mod protocol;
 
 #[cfg(any(feature = "tcp-client", feature = "ws-client"))]
-pub mod client;
+pub(crate) mod client;
 
 #[cfg(any(feature = "tcp-server", feature = "ws-server"))]
-pub mod server;
+pub(crate) mod server;
+
+#[cfg(test)]
+mod tests;
+
+pub mod prelude;

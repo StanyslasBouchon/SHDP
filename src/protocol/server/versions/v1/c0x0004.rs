@@ -1,12 +1,14 @@
 use std::{fs::File, io::Read, path::Path};
 
+use bitvec::order::Lsb0;
+
 use crate::protocol::{
     errors::Error,
-    server::{bits::builder::InBuilder, event::EventBuilder},
+    managers::{bits::encoder::BitEncoder, event::EventEncoder},
 };
 
 pub struct FullFyveResponse {
-    builder: InBuilder,
+    encoder: BitEncoder<Lsb0>,
     path: String,
 }
 
@@ -20,14 +22,14 @@ impl FullFyveResponse {
         }
 
         FullFyveResponse {
-            builder: InBuilder::new(),
+            encoder: BitEncoder::<Lsb0>::new(),
             path,
         }
     }
 }
 
-impl EventBuilder for FullFyveResponse {
-    fn construct(&mut self) -> Result<(), Error> {
+impl EventEncoder<Lsb0> for FullFyveResponse {
+    fn encode(&mut self) -> Result<(), Error> {
         let file_name = Path::new(&self.path)
             .file_name()
             .ok_or(Error {
@@ -43,8 +45,8 @@ impl EventBuilder for FullFyveResponse {
             })?
             .to_string();
 
-        self.builder.add_bytes(file_name.as_bytes())?;
-        self.builder.add_data(0, 8)?;
+        self.encoder.add_bytes(file_name.as_bytes())?;
+        self.encoder.add_data(0, 8)?;
 
         let mut file = match File::open(&self.path) {
             Ok(file) => file,
@@ -69,13 +71,13 @@ impl EventBuilder for FullFyveResponse {
             }
         };
 
-        self.builder.add_bytes(content.as_bytes())?;
+        self.encoder.add_bytes(content.as_bytes())?;
 
         Ok(())
     }
 
-    fn get_builder(&self) -> &InBuilder {
-        &self.builder
+    fn get_encoder(&self) -> &BitEncoder<Lsb0> {
+        &self.encoder
     }
 
     fn get_event(&self) -> u16 {

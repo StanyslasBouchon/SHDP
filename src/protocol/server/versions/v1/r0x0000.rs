@@ -1,24 +1,27 @@
 use std::path::Path;
 
+use bitvec::order::{Lsb0, Msb0};
+
 use crate::protocol::{
     errors::{Error, ErrorKind},
-    server::{
-        bits::decoder::InDecoder,
-        event::{EventBuilder, EventDecoder},
-        versions::{registry::EVENT_REGISTRY, v1::c0x0003::ComponentNeedsResponse},
+    managers::{
+        bits::decoder::BitDecoder,
+        event::{EventDecoder, EventEncoder},
     },
+    prelude::common::registry::EVENT_REGISTRY_MSB,
+    server::versions::v1::c0x0003::ComponentNeedsResponse,
 };
 
 use super::{c0x0001::HtmlFileResponse, c0x0004::FullFyveResponse};
 
 #[derive(Clone)]
 pub struct ComponentNeedsRequest {
-    decoder: InDecoder,
+    decoder: BitDecoder<Msb0>,
     pub requested_component_name: Option<String>,
 }
 
 impl ComponentNeedsRequest {
-    pub fn new(decoder: InDecoder) -> Self {
+    pub fn new(decoder: BitDecoder<Msb0>) -> Self {
         if cfg!(feature = "debug") {
             println!("[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0000\x1b[0m received");
         }
@@ -30,16 +33,16 @@ impl ComponentNeedsRequest {
     }
 }
 
-impl EventDecoder for ComponentNeedsRequest {
-    fn parse(&mut self) -> Result<(), Error> {
+impl EventDecoder<Msb0> for ComponentNeedsRequest {
+    fn decode(&mut self) -> Result<(), Error> {
         self.requested_component_name =
             Some(String::from_utf8(self.decoder.frame.clone().into()).unwrap());
 
         Ok(())
     }
 
-    fn get_responses(&self) -> Result<Vec<Box<dyn EventBuilder>>, Error> {
-        let args = match EVENT_REGISTRY.get_listener(1, 0x0000) {
+    fn get_responses(&self) -> Result<Vec<Box<dyn EventEncoder<Lsb0>>>, Error> {
+        let args = match EVENT_REGISTRY_MSB.lock().unwrap().get_listener((1, 0x0000)) {
             Some(listener) => listener(Box::new(self.clone())),
             None => {
                 return Err(Error {
@@ -69,13 +72,13 @@ impl EventDecoder for ComponentNeedsRequest {
 
         let files = files?;
 
-        let mut responses: Vec<Box<dyn EventBuilder>> = files_path
+        let mut responses: Vec<Box<dyn EventEncoder<Lsb0>>> = files_path
             .iter()
             .map(|path| {
                 if path.ends_with(".html") {
-                    Box::new(HtmlFileResponse::new(path.to_owned())) as Box<dyn EventBuilder>
+                    Box::new(HtmlFileResponse::new(path.to_owned())) as Box<dyn EventEncoder<Lsb0>>
                 } else {
-                    Box::new(FullFyveResponse::new(path.to_owned())) as Box<dyn EventBuilder>
+                    Box::new(FullFyveResponse::new(path.to_owned())) as Box<dyn EventEncoder<Lsb0>>
                 }
             })
             .collect();

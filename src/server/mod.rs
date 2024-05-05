@@ -1,8 +1,13 @@
 #[cfg(feature = "tcp-server")]
-pub mod tcp;
+mod tcp;
 
 #[cfg(feature = "tls-server")]
-pub mod tls;
+mod tls;
 
 #[cfg(feature = "ws-server")]
-pub mod ws;
+mod ws;
+
+#[cfg(feature = "wss-server")]
+mod wss;
+
+pub mod prelude;

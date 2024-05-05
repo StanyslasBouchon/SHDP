@@ -1,2 +1,1 @@
-pub mod registry;
-pub mod v1;
+pub(crate) mod v1;

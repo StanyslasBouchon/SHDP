@@ -1,31 +1,73 @@
 use std::sync::Arc;
 
-use async_std::{
-    net::{TcpListener, TcpStream},
-    stream::StreamExt,
-};
+use async_std::{net::TcpListener, stream::StreamExt};
 use async_tungstenite::{accept_async, WebSocketStream};
-use futures::SinkExt;
+use bitvec::order::{Lsb0, Msb0};
+use futures::{AsyncRead, AsyncWrite, SinkExt};
 use tokio::sync::Mutex;
 use tungstenite::Message;
 
-use crate::protocol::{
-    errors::{Error, ErrorKind},
-    server::{
-        bits::decoder::InDecoder,
-        builder::OutBuilder,
-        decoder::Decoder,
-        versions::{registry::EVENT_REGISTRY, v1::c0x0002::ErrorResponse},
+use crate::{
+    protocol::{
+        errors::{Error, ErrorKind},
+        managers::bits::{
+            decoder::{BitDecoder, FrameDecoder},
+            encoder::FrameEncoder,
+        },
+        prelude::common::registry::EVENT_REGISTRY_MSB,
+        versions::Version,
     },
-    versions::Version,
+    server::prelude::{Listener, DEVICES},
 };
 
+use super::prelude::answer_error;
+
+///
+/// Listens for incoming WebSocket connections.
+///
+/// It creates a new thread for SHDP clients.
+///
+/// # Arguments
+/// * `port` - The port to listen on.
+///
+/// # Returns
+/// * [Result<(), ShdpError>] - The result of the operation.
+///
+/// # Errors
+/// Generated errors are related to the I/O operations.<br>
+/// They need to be handled by the caller.
+///
+/// # Example
+/// ```rust,no_run
+/// use shdp::prelude::server::ws::listen;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     match listen(String::from("8080")).await {
+///         Ok(_) => println!("Listening on port 8080"),
+///         Err(e) => println!("Error: {:?}", e),
+///     }
+/// }
+/// ```
 pub async fn listen(port: String) -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
 
-    println!("[SHDP:WS] Listening on port {}", port);
+    DEVICES.lock().unwrap().insert(
+        ("127.0.0.1".to_string(), port.clone()),
+        Listener::Async(listener),
+    );
 
-    while let Ok((stream, _)) = listener.accept().await {
+    println!("[SHDP:WS] Listening on port {}", port.clone());
+
+    while let Ok((stream, _)) = DEVICES
+        .lock()
+        .unwrap()
+        .get(&("127.0.0.1".to_string(), port.clone()))
+        .unwrap()
+        .get_async()
+        .accept()
+        .await
+    {
         let ws = accept_async(stream.clone()).await;
 
         match ws {
@@ -45,7 +87,9 @@ pub async fn listen(port: String) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn handle_connection(ws: Arc<Mutex<WebSocketStream<TcpStream>>>) {
+pub async fn handle_connection<IO: AsyncRead + AsyncWrite + Unpin>(
+    ws: Arc<Mutex<WebSocketStream<IO>>>,
+) {
     while let Some(message) = {
         let mut guard = ws.lock().await;
         guard.next().await
@@ -79,12 +123,16 @@ async fn handle_connection(ws: Arc<Mutex<WebSocketStream<TcpStream>>>) {
     }
 }
 
-async fn handle_message(ws: Arc<Mutex<WebSocketStream<TcpStream>>>, message: Message) {
+async fn handle_message<IO: AsyncRead + AsyncWrite + Unpin>(
+    ws: Arc<Mutex<WebSocketStream<IO>>>,
+    message: Message,
+) {
     let data = message.into_data();
-    let decoder = InDecoder::new(data);
-    let data = Decoder::new(decoder.clone()).parse().unwrap();
+    let decoder = BitDecoder::<Msb0>::new(data);
+    let data = FrameDecoder::<Msb0>::new(decoder.clone()).decode().unwrap();
 
-    let factory = match EVENT_REGISTRY.get_event(data.version, data.event) {
+    let registry = EVENT_REGISTRY_MSB.lock().unwrap();
+    let factory = match registry.get_event((data.version, data.event)) {
         Some(event) => event,
         None => {
             println!(
@@ -111,7 +159,7 @@ async fn handle_message(ws: Arc<Mutex<WebSocketStream<TcpStream>>>, message: Mes
     };
 
     let mut event = factory(decoder);
-    match event.parse() {
+    match event.decode() {
         Ok(_) => (),
         Err(e) => {
             let err = answer_error(data.version, e);
@@ -140,15 +188,15 @@ async fn handle_message(ws: Arc<Mutex<WebSocketStream<TcpStream>>>, message: Mes
     };
 
     for response in responses {
-        let mut builder = match OutBuilder::new(data.version) {
-            Ok(builder) => builder,
+        let mut encoder = match FrameEncoder::<Lsb0>::new(data.version) {
+            Ok(encoder) => encoder,
             Err(e) => {
-                println!("[SHDP:WS] Error creating builder: {}", e);
+                println!("[SHDP:WS] Error creating encoder: {}", e);
                 return;
             }
         };
 
-        let frame = builder.construct(response).unwrap();
+        let frame = encoder.encode(response).unwrap();
 
         let mut guard = ws.lock().await;
         if let Err(e) = guard.send(Message::Binary(frame)).await {
@@ -156,11 +204,4 @@ async fn handle_message(ws: Arc<Mutex<WebSocketStream<TcpStream>>>, message: Mes
             return;
         }
     }
-}
-
-fn answer_error(version: u8, error: crate::protocol::errors::Error) -> Vec<u8> {
-    let mut builder = OutBuilder::new(version).unwrap();
-    builder
-        .construct(Box::new(ErrorResponse::new(error)))
-        .unwrap()
 }

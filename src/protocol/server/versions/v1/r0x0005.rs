@@ -1,19 +1,20 @@
+use bitvec::order::{Lsb0, Msb0};
 use serde_json::Value;
 
 use crate::protocol::{
     errors::{Error, ErrorKind},
-    server::{
-        bits::decoder::InDecoder,
-        event::{EventBuilder, EventDecoder},
-        versions::registry::EVENT_REGISTRY,
+    managers::{
+        bits::decoder::BitDecoder,
+        event::{EventDecoder, EventEncoder},
     },
+    prelude::common::registry::EVENT_REGISTRY_MSB,
 };
 
 use super::c0x0006::InteractionResponse;
 
 #[derive(Clone)]
 pub struct InteractionRequest {
-    decoder: InDecoder,
+    decoder: BitDecoder<Msb0>,
     pub request_id: u64,
     pub function_name: String,
     pub parent_name: String,
@@ -23,7 +24,7 @@ pub struct InteractionRequest {
 }
 
 impl InteractionRequest {
-    pub fn new(decoder: InDecoder) -> Self {
+    pub fn new(decoder: BitDecoder<Msb0>) -> Self {
         if cfg!(feature = "debug") {
             println!("[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;125m0x0005\x1b[0m received");
         }
@@ -40,8 +41,8 @@ impl InteractionRequest {
     }
 }
 
-impl EventDecoder for InteractionRequest {
-    fn parse(&mut self) -> Result<(), Error> {
+impl EventDecoder<Msb0> for InteractionRequest {
+    fn decode(&mut self) -> Result<(), Error> {
         let upper_request_id = self.decoder.read_data(32)?;
         let lower_request_id = self.decoder.read_data(32)?;
         self.request_id = (upper_request_id as u64) << 32 | lower_request_id as u64;
@@ -58,11 +59,8 @@ impl EventDecoder for InteractionRequest {
         let string: String = data.iter().map(|&b| b as char).collect();
         let parts: Vec<&str> = string.split('\x00').collect();
 
-        self.function_name = parts[0].to_string();
-        self.parent_name = parts[1].to_string();
-        self.object_id = parts[2].parse().ok();
-        self.params = serde_json::from_str(parts[3]).ok();
-        self.token = parts.get(4).map(|s| s.to_string());
+        self.function_name = String::from(parts[0]);
+        self.parent_name = String::from(parts[1]);
 
         if self.function_name.is_empty() {
             return Err(Error {
@@ -80,6 +78,22 @@ impl EventDecoder for InteractionRequest {
             });
         }
 
+        self.token = if parts[2].is_empty() {
+            None
+        } else {
+            Some(parts[2].to_string())
+        };
+        self.object_id = if parts[3].is_empty() {
+            None
+        } else {
+            Some(parts[3].to_string().parse::<i32>().unwrap())
+        };
+        self.params = if parts[4].is_empty() {
+            None
+        } else {
+            Some(serde_json::from_str(parts[4]).unwrap())
+        };
+
         if cfg!(feature = "debug") {
             println!(
                 "[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;125m0x0005\x1b[0m: function_name: {}, table: {}, object_id: {:?}, params: {:?}, token: {:?}",
@@ -90,8 +104,8 @@ impl EventDecoder for InteractionRequest {
         Ok(())
     }
 
-    fn get_responses(&self) -> Result<Vec<Box<dyn EventBuilder>>, Error> {
-        let args = match EVENT_REGISTRY.get_listener(1, 0x0005) {
+    fn get_responses(&self) -> Result<Vec<Box<dyn EventEncoder<Lsb0>>>, Error> {
+        let args = match EVENT_REGISTRY_MSB.lock().unwrap().get_listener((1, 0x0005)) {
             Some(listener) => listener(Box::new(self.clone())),
             None => {
                 return Err(Error {

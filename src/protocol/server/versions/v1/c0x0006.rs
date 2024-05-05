@@ -1,12 +1,13 @@
+use bitvec::order::Lsb0;
 use serde_json::Value;
 
 use crate::protocol::{
     errors::Error,
-    server::{bits::builder::InBuilder, event::EventBuilder},
+    managers::{bits::encoder::BitEncoder, event::EventEncoder},
 };
 
 pub struct InteractionResponse {
-    builder: InBuilder,
+    encoder: BitEncoder<Lsb0>,
     request_id: u64,
     response: Option<Value>,
 }
@@ -18,24 +19,24 @@ impl InteractionResponse {
         }
 
         InteractionResponse {
-            builder: InBuilder::new(),
+            encoder: BitEncoder::<Lsb0>::new(),
             request_id,
             response,
         }
     }
 }
 
-impl EventBuilder for InteractionResponse {
-    fn construct(&mut self) -> Result<(), Error> {
+impl EventEncoder<Lsb0> for InteractionResponse {
+    fn encode(&mut self) -> Result<(), Error> {
         let upper_request_id = (self.request_id >> 32) as u32;
         let lower_request_id = (self.request_id & 0xFFFFFFFF) as u32;
 
-        self.builder.add_data(upper_request_id, 32)?;
-        self.builder.add_data(lower_request_id, 32)?;
+        self.encoder.add_data(upper_request_id, 32)?;
+        self.encoder.add_data(lower_request_id, 32)?;
 
         match &self.response {
             Some(response) => {
-                self.builder.add_bytes(response.to_string().as_bytes())?;
+                self.encoder.add_bytes(response.to_string().as_bytes())?;
             }
             _ => (),
         }
@@ -43,8 +44,8 @@ impl EventBuilder for InteractionResponse {
         Ok(())
     }
 
-    fn get_builder(&self) -> &InBuilder {
-        &self.builder
+    fn get_encoder(&self) -> &BitEncoder<Lsb0> {
+        &self.encoder
     }
 
     fn get_event(&self) -> u16 {

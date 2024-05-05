@@ -4,19 +4,61 @@ use std::{
     thread,
 };
 
-use crate::protocol::server::{
-    bits::decoder::InDecoder,
-    builder::OutBuilder,
-    decoder::Decoder,
-    versions::{registry::EVENT_REGISTRY, v1::c0x0002::ErrorResponse},
+use bitvec::order::{Lsb0, Msb0};
+
+use crate::{
+    protocol::{
+        managers::bits::{
+            decoder::{BitDecoder, FrameDecoder},
+            encoder::FrameEncoder,
+        },
+        prelude::common::registry::EVENT_REGISTRY_MSB,
+    },
+    server::prelude::{answer_error, Listener, DEVICES},
 };
 
+///
+/// Listens for incoming TCP connections.
+///
+/// It creates a new thread for SHDP clients.
+///
+/// # Arguments
+/// * `port` - The port to listen on.
+///
+/// # Returns
+/// * [Result<(), Error>] - The result of the operation.
+///
+/// # Errors
+/// Generated errors are related to the I/O operations.<br>
+/// They need to be handled by the caller.
+///
+/// # Example
+/// ```rust,no_run
+/// use shdp::prelude::server::tcp::listen;
+///
+/// match listen(String::from("8080")) {
+///     Ok(_) => println!("Listening on port 8080"),
+///     Err(e) => println!("Error: {:?}", e),
+/// }
+/// ```
 pub fn listen(port: String) -> Result<(), Error> {
     let listener = TcpListener::bind(format!("127.0.0.1:{}", port))?;
 
-    println!("[SHDP:TCP] Listening on port {}", port);
+    DEVICES.lock().unwrap().insert(
+        ("127.0.0.1".to_string(), port.clone()),
+        Listener::Sync(listener),
+    );
 
-    for stream in listener.incoming() {
+    println!("[SHDP:TCP] Listening on port {}", port.clone());
+
+    for stream in DEVICES
+        .lock()
+        .unwrap()
+        .get(&("127.0.0.1".to_string(), port.clone()))
+        .unwrap()
+        .get_sync()
+        .incoming()
+    {
         match stream {
             Ok(stream) => {
                 thread::spawn(|| {
@@ -42,10 +84,11 @@ pub fn handle_client<S: Read + Write>(mut stream: S) {
         match stream.read(&mut buffer) {
             Ok(0) => break,
             Ok(size) => {
-                let decoder = InDecoder::new(buffer[..size].to_vec());
-                let data = Decoder::new(decoder.clone()).parse().unwrap();
+                let decoder = BitDecoder::<Msb0>::new(buffer[..size].to_vec());
+                let data = FrameDecoder::<Msb0>::new(decoder.clone()).decode().unwrap();
 
-                let factory = match EVENT_REGISTRY.get_event(data.version, data.event) {
+                let registry = EVENT_REGISTRY_MSB.lock().unwrap();
+                let factory = match registry.get_event((data.version, data.event)) {
                     Some(event) => event,
                     None => {
                         println!(
@@ -69,7 +112,7 @@ pub fn handle_client<S: Read + Write>(mut stream: S) {
                 };
 
                 let mut event = factory(decoder);
-                match event.parse() {
+                match event.decode() {
                     Ok(_) => (),
                     Err(e) => {
                         stream.write_all(&answer_error(data.version, e)).unwrap();
@@ -86,15 +129,15 @@ pub fn handle_client<S: Read + Write>(mut stream: S) {
                 };
 
                 for response in responses {
-                    let mut builder = match OutBuilder::new(data.version) {
-                        Ok(builder) => builder,
+                    let mut encoder = match FrameEncoder::<Lsb0>::new(data.version) {
+                        Ok(encoder) => encoder,
                         Err(e) => {
-                            println!("[SHDP:TCP] Error creating builder: {}", e);
+                            println!("[SHDP:TCP] Error creating encoder: {}", e);
                             return;
                         }
                     };
 
-                    let frame = builder.construct(response).unwrap();
+                    let frame = encoder.encode(response).unwrap();
 
                     match stream.write_all(&frame) {
                         Ok(_) => (),
@@ -113,11 +156,4 @@ pub fn handle_client<S: Read + Write>(mut stream: S) {
     }
 
     println!("[SHDP:TCP] Connection closed");
-}
-
-fn answer_error(version: u8, error: crate::protocol::errors::Error) -> Vec<u8> {
-    let mut builder = OutBuilder::new(version).unwrap();
-    builder
-        .construct(Box::new(ErrorResponse::new(error)))
-        .unwrap()
 }

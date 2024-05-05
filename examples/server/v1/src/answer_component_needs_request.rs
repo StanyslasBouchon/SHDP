@@ -1,8 +1,7 @@
-
 fn main() {
     // listen method from ws-server, wss-server, tcp-server or tls-server
 
-    EVENT_REGISTRY.add_listener(1, 0x0000, |e| {
+    EVENT_REGISTRY_MSB.add_listener(1, 0x0000, |e| {
         let event = e.downcast::<ComponentNeedsRequest>().unwrap();
 
         if e.requested_component_name == Some("answer".to_string()) {
