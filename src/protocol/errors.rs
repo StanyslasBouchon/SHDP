@@ -1,5 +1,17 @@
 use std::fmt;
 
+///
+/// All the error types that can be returned.
+///
+/// # Example
+/// ```rust
+/// use shdp::prelude::common::error::ErrorKind;
+///
+/// fn main() {
+///     let error = ErrorKind::NotFound;
+///     println!("{}", error);
+/// }
+/// ```
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum ErrorKind {
@@ -31,6 +43,18 @@ pub enum ErrorKind {
     SizeConstraintViolation,
     ProtocolError,
     UnknownVersion,
+    ///
+    /// User defined error.
+    ///
+    /// # Example
+    /// ```rust
+    /// use shdp::prelude::common::error::ErrorKind;
+    ///
+    /// fn main() {
+    ///     let error = ErrorKind::UserDefined(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "User defined error")));
+    ///     println!("{}", error);
+    /// }
+    /// ```
     UserDefined(Box<dyn std::error::Error>),
 }
 
@@ -49,10 +73,13 @@ impl fmt::Display for ErrorKind {
             ErrorKind::Gone => write!(f, "Gone"),
             ErrorKind::LengthRequired => write!(f, "LengthRequired"),
             ErrorKind::PreconditionFailed => write!(f, "PreconditionFailed"),
-            ErrorKind::RequestEntityTooLarge => write!(f, "RequestEntityTooLarge"),
+            ErrorKind::RequestEntityTooLarge =>
+                write!(f, "RequestEntityTooLarge"),
             ErrorKind::RequestUriTooLong => write!(f, "RequestUriTooLong"),
-            ErrorKind::UnsupportedMediaType => write!(f, "UnsupportedMediaType"),
-            ErrorKind::RequestedRangeUnsatisfiable => write!(f, "RequestedRangeUnsatisfiable"),
+            ErrorKind::UnsupportedMediaType =>
+                write!(f, "UnsupportedMediaType"),
+            ErrorKind::RequestedRangeUnsatisfiable =>
+                write!(f, "RequestedRangeUnsatisfiable"),
             ErrorKind::ExpectationFailed => write!(f, "ExpectationFailed"),
             ErrorKind::Expired => write!(f, "Expired"),
             ErrorKind::BadMapping => write!(f, "BadMapping"),
@@ -62,7 +89,8 @@ impl fmt::Display for ErrorKind {
             ErrorKind::InternalServerError => write!(f, "InternalServerError"),
             ErrorKind::NotImplemented => write!(f, "NotImplemented"),
             ErrorKind::ServiceUnavailable => write!(f, "ServiceUnavailable"),
-            ErrorKind::SizeConstraintViolation => write!(f, "SizeConstraintViolation"),
+            ErrorKind::SizeConstraintViolation =>
+                write!(f, "SizeConstraintViolation"),
             ErrorKind::ProtocolError => write!(f, "ProtocolError"),
             ErrorKind::UnknownVersion => write!(f, "UnknownVersion"),
             ErrorKind::UserDefined(e) => write!(f, "{}", e),
@@ -70,19 +98,34 @@ impl fmt::Display for ErrorKind {
     }
 }
 
+///
+/// A basic error structure.
+/// # Example
+/// ```rust
+/// use shdp::prelude::common::error::{Error, ErrorKind};
+///
+/// fn main() {
+///     let error = Error {
+///         code: 404,
+///         message: "Not Found".to_string(),
+///         kind: ErrorKind::NotFound,
+///     };
+///
+///     println!("{}", error);
+/// }
+/// ```
 #[derive(Debug)]
 pub struct Error {
+    /// The error code.
     pub code: u32,
+    /// The error message.
     pub message: String,
+    /// The error kind.
     pub kind: ErrorKind,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Error: [{}]:{} -> {}",
-            self.kind, self.code, self.message
-        )
+        write!(f, "Error: [{}]:{} -> {}", self.kind, self.code, self.message)
     }
 }

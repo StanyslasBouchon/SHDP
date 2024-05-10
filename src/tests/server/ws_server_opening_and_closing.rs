@@ -2,12 +2,10 @@ use async_std::future::timeout;
 use async_std::task;
 use std::time::Duration;
 
-use crate::server::prelude::{stop, ws::listen};
+use crate::server::prelude::{ stop, ws::listen };
 
 #[test]
 fn test() {
-    println!("Running test");
-
     let test_result = task::block_on(async {
         let timeout_duration = Duration::from_secs(2);
         let listen_future = a();

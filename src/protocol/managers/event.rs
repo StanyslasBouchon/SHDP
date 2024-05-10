@@ -3,7 +3,7 @@ use bitvec::order::BitOrder;
 
 #[allow(unused_imports)]
 use crate::protocol::{
-    errors::{Error, ErrorKind},
+    errors::{ Error, ErrorKind },
     managers::bits::encoder::BitEncoder,
 };
 
@@ -111,7 +111,7 @@ pub trait EventEncoder<O: BitReversible> {
 ///         self.data = self.decoder.read_data(32)?;
 ///         Ok(())
 ///     }
-///     
+///
 ///     fn get_responses(&self) -> Result<Vec<Box<dyn EventEncoder<Lsb0>>>, Error> {
 ///         Ok(vec![])
 ///     }
@@ -140,5 +140,7 @@ pub trait EventDecoder<R: BitReversible> {
     /// # Errors
     /// It can return any error based on user implementation.
     ///
-    fn get_responses(&self) -> Result<Vec<Box<dyn EventEncoder<R::Opposite>>>, Error>;
+    fn get_responses(
+        &self
+    ) -> Result<Vec<Box<dyn EventEncoder<R::Opposite>>>, Error>;
 }

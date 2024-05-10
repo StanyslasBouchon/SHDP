@@ -1,0 +1,18 @@
+{
+    "printWidth": 80,
+    "bracketSpacing": true,
+    "overrides": [
+        {
+          "files": "*.ts",
+          "options": {
+            "parser": "typescript"
+          }
+        },
+        {
+          "files": "*.rs",
+          "options": {
+            "parser": "rust"
+          }
+        }
+      ]
+}

@@ -1,6 +1,6 @@
 use bitvec::vec::BitVec;
 
-use crate::protocol::errors::{Error, ErrorKind};
+use crate::protocol::errors::{ Error, ErrorKind };
 
 #[allow(unused_imports)]
 #[cfg(any(feature = "tcp-server", feature = "ws-server"))]
@@ -15,7 +15,7 @@ use super::prelude::BitReversible;
 pub struct BitDecoder<R: BitReversible> {
     /// The frame to read data from.
     pub frame: BitVec<u8, R>,
-    position: usize,
+    pub position: usize,
 }
 
 impl<R: BitReversible> BitDecoder<R> {
@@ -70,7 +70,7 @@ impl<R: BitReversible> BitDecoder<R> {
     /// ```
     ///
     pub fn read_data(&mut self, n: u8) -> Result<u32, Error> {
-        if self.position + n as usize > self.frame.len() {
+        if self.position + (n as usize) > self.frame.len() {
             return Err(Error {
                 code: 0b1000,
                 message: "Out of bound".to_string(),
@@ -81,7 +81,10 @@ impl<R: BitReversible> BitDecoder<R> {
         let mut data = 0;
 
         for _ in 0..n {
-            let bit = self.frame.get(self.position).map(|b| *b).unwrap_or(false);
+            let bit = self.frame
+                .get(self.position)
+                .map(|b| *b)
+                .unwrap_or(false);
             data = (data << 1) | (bit as u32);
             self.position += 1;
         }
@@ -131,7 +134,11 @@ impl<R: BitReversible> BitDecoder<R> {
     /// );
     /// ```
     ///
-    pub fn read_vec(&self, from: usize, to: usize) -> Result<BitVec<u8, R>, Error> {
+    pub fn read_vec(
+        &self,
+        from: usize,
+        to: usize
+    ) -> Result<BitVec<u8, R>, Error> {
         if from >= self.frame.len() {
             return Err(Error {
                 code: 0b1100,
@@ -291,7 +298,9 @@ impl<R: BitReversible> FrameDecoder<R> {
         let event = self.decoder.read_data(16)? as u16;
         let data_size = self.decoder.read_data(32)? as u16;
 
-        let data = Box::new(self.decoder.read_vec(56, 56 + (data_size as usize))?);
+        let data = Box::new(
+            self.decoder.read_vec(56, 56 + (data_size as usize))?
+        );
 
         Ok(Frame {
             version,

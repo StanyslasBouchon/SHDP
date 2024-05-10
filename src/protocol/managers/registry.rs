@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, Once};
+use std::sync::{ Arc, Mutex, Once };
 
-use bitvec::order::{Lsb0, Msb0};
+use bitvec::order::{ Lsb0, Msb0 };
 use ctor::ctor;
 use lazy_static::lazy_static;
 
@@ -11,7 +11,9 @@ use crate::protocol::managers::event::EventDecoder;
 use crate::protocol::server::versions::v1::r0x0000::ComponentNeedsRequest;
 #[cfg(any(feature = "tcp-server", feature = "ws-server", feature = "serde"))]
 use crate::protocol::server::versions::v1::r0x0005::InteractionRequest;
-use crate::protocol::{args::Arg, managers::bits::decoder::BitDecoder};
+use crate::protocol::{ args::Arg, managers::bits::decoder::BitDecoder };
+
+use super::bits::decoder::Frame;
 
 ///
 /// The event id is a tuple that represents the version and the event code: (version, event_code).
@@ -22,13 +24,18 @@ pub type EventId = (u8, u16);
 /// The event function is a function that will be called when the event is received.<br>
 /// It allows parsing the corresponding event to its structure.
 ///
-pub type EventFn<R> = fn(bit_decoder: BitDecoder<R>) -> Box<dyn EventDecoder<R>>;
+pub type EventFn<R> = fn(
+    frame: Frame<R>,
+    bit_decoder: BitDecoder<R>
+) -> Box<dyn EventDecoder<R>>;
 
 ///
 /// The listener function is a function that will be called when the event is received.
 /// It allows getting the resources needed to answer the event.
 ///
-pub type ListenerFn<R> = fn(event_decoder: Box<dyn EventDecoder<R>>) -> Box<[Arg]>;
+pub type ListenerFn<R> = fn(
+    event_decoder: Box<dyn EventDecoder<R>>
+) -> Box<[Arg]>;
 
 ///
 /// The event registry is a structure that permits storing events and listeners.
@@ -148,7 +155,11 @@ impl<R: BitReversible> EventRegistry<R> {
     /// * `listener_fn` - The listener function that will be called when the event is received.
     ///
     #[allow(dead_code)]
-    pub fn add_listener(&mut self, event_id: EventId, listener_fn: ListenerFn<R>) {
+    pub fn add_listener(
+        &mut self,
+        event_id: EventId,
+        listener_fn: ListenerFn<R>
+    ) {
         self.listeners.insert(event_id, listener_fn);
     }
 }
@@ -175,16 +186,20 @@ static INIT: Once = Once::new();
 fn init() {
     INIT.call_once(|| {
         #[cfg(any(feature = "tcp-server", feature = "ws-server"))]
-        EVENT_REGISTRY_MSB
-            .lock()
+        EVENT_REGISTRY_MSB.lock()
             .unwrap()
             .add_event((1, 0x0000), |decoder| {
                 Box::new(ComponentNeedsRequest::new(decoder))
             });
 
-        #[cfg(any(feature = "tcp-server", feature = "ws-server", feature = "serde"))]
-        EVENT_REGISTRY_MSB
-            .lock()
+        #[cfg(
+            any(
+                feature = "tcp-server",
+                feature = "ws-server",
+                feature = "serde"
+            )
+        )]
+        EVENT_REGISTRY_MSB.lock()
             .unwrap()
             .add_event((1, 0x0005), |decoder| {
                 Box::new(InteractionRequest::new(decoder))
