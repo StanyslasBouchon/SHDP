@@ -1,12 +1,9 @@
-use async_std::future::timeout;
-use async_std::task;
+use crate::{protocol::prelude::common::utils::stop, server::prelude::tcp::listen};
+use async_std::{future::timeout, task};
 use std::time::Duration;
 
-use crate::protocol::prelude::common::utils::stop;
-use crate::server::prelude::ws::listen;
-
-#[test]
-fn test() {
+#[tokio::test]
+async fn test() {
     let test_result = task::block_on(async {
         let timeout_duration = Duration::from_secs(2);
         let listen_future = start();
@@ -15,7 +12,7 @@ fn test() {
             Ok(result) => result,
             Err(_) => {
                 println!("Timeout reached, stopping the listener");
-                stop(String::from("127.0.0.1"), String::from("9998")).await;
+                stop(String::from("127.0.0.1"), String::from("9999")).await;
                 None
             }
         }
@@ -25,14 +22,14 @@ fn test() {
 }
 
 async fn start() -> Option<()> {
-    match listen(String::from("9998")).await {
+    match listen(String::from("9999")).await {
         Ok(_) => {
             println!("Listen succeeded");
             Some(())
         }
         Err(e) => {
             println!("Error: {:?}", e);
-            stop(String::from("127.0.0.1"), String::from("9998")).await;
+            stop(String::from("127.0.0.1"), String::from("9999")).await;
             assert!(false);
             None
         }

@@ -1,13 +1,13 @@
-use std::{io::Error, net::TcpListener, sync::Arc, thread};
+use std::{io::Error, sync::Arc, thread};
 
-use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
+use openssl::ssl::{Ssl, SslAcceptor, SslFiletype, SslMethod};
+use tokio::net::TcpListener;
+use tokio_openssl::SslStream;
 
-use crate::server::{
-    prelude::{Listener, DEVICES},
-    tcp::handle_client,
+use crate::{
+    protocol::prelude::common::utils::{Certificate, Listener, DEVICES},
+    server::tcp::handle_client,
 };
-
-use super::prelude::Certificate;
 
 ///
 /// Listens for incoming TLS connections.
@@ -28,57 +28,58 @@ use super::prelude::Certificate;
 /// # Example
 /// ```rust,no_run
 /// use shdp::prelude::server::tls::listen;
+/// use shdp::prelude::common::utils::Certificate;
 ///
-/// let cert = shdp::prelude::server::Certificate {
-///     cert_path: String::from("cert.pem"),
-///     key_path: String::from("key.pem"),
-/// };
-///
-/// match listen(String::from("8080"), cert) {
-///     Ok(_) => println!("Listening on port 8080"),
-///     Err(e) => println!("Error: {:?}", e),
+/// #[tokio::main]
+/// async fn main() {
+///     match listen(String::from("8080"), Certificate {
+///         cert_path: String::from("cert.pem"),
+///         key_path: String::from("key.pem"),
+///     }).await {
+///         Ok(_) => println!("Listening on port 8080"),
+///         Err(e) => println!("Error: {:?}", e),
+///     }
 /// }
 /// ```
-pub fn listen(port: String, cert: Certificate) -> Result<(), Error> {
+#[allow(unused_must_use)]
+pub async fn listen(port: String, cert: Certificate) -> Result<(), Error> {
     let acceptor = load_acceptor(cert);
-    let listener = TcpListener::bind(format!("127.0.0.1:{}", port))?;
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
+    let static_listener: &'static TcpListener = Box::leak(Box::new(listener));
 
     DEVICES.lock().unwrap().insert(
         ("127.0.0.1".to_string(), port.clone()),
-        Listener::Sync(listener),
+        Listener::TokioServer(static_listener),
     );
 
     println!("[SHDP:TLS] Listening on port {}", port.clone());
 
-    for stream in DEVICES
+    while let Ok((stream, _)) = DEVICES
         .lock()
         .unwrap()
         .get(&("127.0.0.1".to_string(), port.clone()))
         .unwrap()
-        .get_sync()
-        .incoming()
+        .get_tokio_server()
+        .accept()
+        .await
     {
-        match stream {
-            Ok(stream) => {
-                println!(
-                    "[SHDP:TLS] New connection from {}",
-                    stream.peer_addr().unwrap()
-                );
+        println!(
+            "[SHDP:TLS] New connection from {}",
+            stream.peer_addr().unwrap()
+        );
 
-                let acceptor_duplicate = acceptor.clone();
-                thread::spawn(move || {
-                    let tls_stream = acceptor_duplicate.accept(stream);
+        let acceptor_duplicate = acceptor.clone();
+        thread::spawn(move || {
+            let ssl = Ssl::new(acceptor_duplicate.context()).unwrap();
+            let tls_stream = SslStream::new(ssl, stream);
 
-                    match tls_stream {
-                        Ok(tls_stream) => {
-                            handle_client(tls_stream);
-                        }
-                        Err(e) => println!("[SHDP:TLS] Error: {:?}", e),
-                    }
-                });
+            match tls_stream {
+                Ok(tls_stream) => {
+                    handle_client(tls_stream);
+                }
+                Err(e) => println!("[SHDP:TLS] Error: {:?}", e),
             }
-            Err(e) => return Err(e),
-        }
+        });
     }
 
     Ok(())

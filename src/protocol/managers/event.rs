@@ -3,11 +3,11 @@ use bitvec::order::BitOrder;
 
 #[allow(unused_imports)]
 use crate::protocol::{
-    errors::{ Error, ErrorKind },
+    errors::{Error, ErrorKind},
     managers::bits::encoder::BitEncoder,
 };
 
-use super::bits::prelude::BitReversible;
+use super::bits::{decoder::Frame, prelude::BitReversible};
 
 ///
 /// The event encoder structure that permits constructing events over frames.
@@ -88,7 +88,7 @@ pub trait EventEncoder<O: BitReversible> {
 ///
 /// use shdp::prelude::common::{
 ///     event::{EventDecoder, EventEncoder},
-///     bits::BitDecoder,
+///     bits::{BitDecoder, Frame},
 ///     error::Error
 /// };
 ///
@@ -107,7 +107,7 @@ pub trait EventEncoder<O: BitReversible> {
 /// }
 ///
 /// impl EventDecoder<Msb0> for MyEvent {
-///     fn decode(&mut self) -> Result<(), Error> {
+///     fn decode(&mut self, _: Frame<Msb0>) -> Result<(), Error> {
 ///         self.data = self.decoder.read_data(32)?;
 ///         Ok(())
 ///     }
@@ -121,6 +121,9 @@ pub trait EventDecoder<R: BitReversible> {
     ///
     /// Decode the frame into the event.
     ///
+    /// # Arguments
+    /// * `frame` - The frame wrapping the event.
+    ///
     /// # Errors
     /// It can return an [ErrorKind::SizeConstraintViolation] if the data overflows a [u32].<br>
     /// It can return an [ErrorKind::SizeConstraintViolation] if the data is less than 8 bits.<br>
@@ -128,7 +131,7 @@ pub trait EventDecoder<R: BitReversible> {
     ///
     /// It can return any other error based on user implementation.
     ///
-    fn decode(&mut self) -> Result<(), Error>;
+    fn decode(&mut self, frame: Frame<R>) -> Result<(), Error>;
 
     ///
     /// Get the responses from the event.
@@ -140,7 +143,5 @@ pub trait EventDecoder<R: BitReversible> {
     /// # Errors
     /// It can return any error based on user implementation.
     ///
-    fn get_responses(
-        &self
-    ) -> Result<Vec<Box<dyn EventEncoder<R::Opposite>>>, Error>;
+    fn get_responses(&self) -> Result<Vec<Box<dyn EventEncoder<R::Opposite>>>, Error>;
 }

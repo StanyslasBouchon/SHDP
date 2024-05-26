@@ -36,7 +36,7 @@ impl EventEncoder<Lsb0> for ComponentNeedsResponse {
 
         match &self.title {
             Some(title) => {
-                self.encoder.add_data(0, 8)?;
+                self.encoder.add_data(1, 8)?;
                 self.encoder.add_bytes(title.as_bytes())?;
             }
             None => (),
@@ -47,8 +47,6 @@ impl EventEncoder<Lsb0> for ComponentNeedsResponse {
                 self.encoder.add_data(0, 8)?;
                 self.encoder.add_bytes(file.as_bytes())?;
             }
-        } else {
-            self.encoder.add_data(1, 8)?;
         }
 
         Ok(())

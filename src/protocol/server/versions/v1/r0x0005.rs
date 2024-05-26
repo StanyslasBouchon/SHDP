@@ -1,3 +1,7 @@
+//!
+//! Defines everything for the 0x0005 event.
+//!
+
 use bitvec::order::{Lsb0, Msb0};
 use serde_json::Value;
 
@@ -7,23 +11,61 @@ use crate::protocol::{
         bits::decoder::BitDecoder,
         event::{EventDecoder, EventEncoder},
     },
-    prelude::common::registry::EVENT_REGISTRY_MSB,
+    prelude::common::{bits::Frame, registry::EVENT_REGISTRY_MSB},
 };
 
 use super::c0x0006::InteractionResponse;
 
+///
+/// The [InteractionRequest] struct is used to interact with the server.
+///
+/// It is identified as event 0x0005.
+///
 #[derive(Clone)]
 pub struct InteractionRequest {
     decoder: BitDecoder<Msb0>,
+    /// The unique request ID.
     pub request_id: u64,
+    /// The name of the function to call.
     pub function_name: String,
+    /// The name of the table to interact with.
     pub parent_name: String,
+    /// The ID of the object to interact with.
     pub object_id: Option<i32>,
+    /// The parameters to pass to the function.
     pub params: Option<Value>,
+    /// The token to authenticate the request.
     pub token: Option<String>,
 }
 
 impl InteractionRequest {
+    ///
+    /// Creates a new [InteractionRequest].
+    ///
+    /// # Arguments
+    /// * `decoder` - The [`BitDecoder<Msb0>`] to decode the request.
+    ///
+    /// # Returns
+    /// * [InteractionRequest] - The created [InteractionRequest].
+    ///
+    /// # Example
+    /// ```rust
+    /// use shdp::prelude::server::versions::v1::r0x0005::InteractionRequest;
+    /// use shdp::prelude::common::bits::BitDecoder;
+    /// use bitvec::order::Msb0;
+    ///
+    /// let decoder = BitDecoder::<Msb0>::new(Vec::new());
+    /// let request = InteractionRequest::new(decoder);
+    ///
+    /// // These are default values.
+    /// assert_eq!(request.request_id, 0);
+    /// assert_eq!(request.function_name, String::new());
+    /// assert_eq!(request.parent_name, String::new());
+    /// assert_eq!(request.object_id, None);
+    /// assert_eq!(request.params, None);
+    /// assert_eq!(request.token, None);
+    /// ```
+    ///
     pub fn new(decoder: BitDecoder<Msb0>) -> Self {
         if cfg!(feature = "debug") {
             println!("[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;125m0x0005\x1b[0m received");
@@ -42,7 +84,7 @@ impl InteractionRequest {
 }
 
 impl EventDecoder<Msb0> for InteractionRequest {
-    fn decode(&mut self) -> Result<(), Error> {
+    fn decode(&mut self, _: Frame<Msb0>) -> Result<(), Error> {
         let upper_request_id = self.decoder.read_data(32)?;
         let lower_request_id = self.decoder.read_data(32)?;
         self.request_id = (upper_request_id as u64) << 32 | lower_request_id as u64;

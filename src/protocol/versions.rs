@@ -3,6 +3,7 @@ use super::errors::{Error, ErrorKind};
 /// Version is an enum that defines the SHDP versions available.
 #[derive(PartialEq, Eq, Hash)]
 pub enum Version {
+    /// Version 1.
     V1,
 }
 

@@ -7,17 +7,17 @@ use futures::{AsyncRead, AsyncWrite, SinkExt};
 use tokio::sync::Mutex;
 use tungstenite::Message;
 
-use crate::{
-    protocol::{
-        errors::{Error, ErrorKind},
-        managers::bits::{
-            decoder::{BitDecoder, FrameDecoder},
-            encoder::FrameEncoder,
-        },
-        prelude::common::registry::EVENT_REGISTRY_MSB,
-        versions::Version,
+use crate::protocol::{
+    errors::{Error, ErrorKind},
+    managers::bits::{
+        decoder::{BitDecoder, FrameDecoder},
+        encoder::FrameEncoder,
     },
-    server::prelude::{Listener, DEVICES},
+    prelude::common::{
+        registry::EVENT_REGISTRY_MSB,
+        utils::{Listener, DEVICES},
+    },
+    versions::Version,
 };
 
 use super::prelude::answer_error;
@@ -54,7 +54,7 @@ pub async fn listen(port: String) -> Result<(), Box<dyn std::error::Error>> {
 
     DEVICES.lock().unwrap().insert(
         ("127.0.0.1".to_string(), port.clone()),
-        Listener::Async(listener),
+        Listener::StdServer(listener),
     );
 
     println!("[SHDP:WS] Listening on port {}", port.clone());
@@ -64,7 +64,7 @@ pub async fn listen(port: String) -> Result<(), Box<dyn std::error::Error>> {
         .unwrap()
         .get(&("127.0.0.1".to_string(), port.clone()))
         .unwrap()
-        .get_async()
+        .get_std_server()
         .accept()
         .await
     {
@@ -159,7 +159,7 @@ async fn handle_message<IO: AsyncRead + AsyncWrite + Unpin>(
     };
 
     let mut event = factory(decoder);
-    match event.decode() {
+    match event.decode(data.clone()) {
         Ok(_) => (),
         Err(e) => {
             let err = answer_error(data.version, e);

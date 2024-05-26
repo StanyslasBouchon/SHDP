@@ -13,14 +13,12 @@ use tokio::sync::Mutex;
 use tungstenite::Error;
 
 use crate::{
-    protocol::errors::{Error as ShdpError, ErrorKind},
-    server::{
-        prelude::{Listener, DEVICES},
-        ws::handle_connection,
+    protocol::{
+        errors::{Error as ShdpError, ErrorKind},
+        prelude::common::utils::{Certificate, Listener, DEVICES},
     },
+    server::ws::handle_connection,
 };
-
-use super::prelude::Certificate;
 
 ///
 /// Listens for incoming Secure WebSocket connections.
@@ -41,10 +39,11 @@ use super::prelude::Certificate;
 /// # Example
 /// ```rust,no_run
 /// use shdp::prelude::server::wss::listen;
+/// use shdp::prelude::common::utils::Certificate;
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     let cert = shdp::prelude::server::Certificate {
+///     let cert = Certificate {
 ///         cert_path: String::from("cert.pem"),
 ///         key_path: String::from("key.pem"),
 ///     };
@@ -80,7 +79,7 @@ pub async fn listen(port: String, cert: Certificate) -> Result<(), ShdpError> {
 
     DEVICES.lock().unwrap().insert(
         ("127.0.0.1".to_string(), port.clone()),
-        Listener::Async(listener),
+        Listener::StdServer(listener),
     );
 
     println!("[SHDP:WS] Listening on port {}", port);
@@ -90,7 +89,7 @@ pub async fn listen(port: String, cert: Certificate) -> Result<(), ShdpError> {
         .unwrap()
         .get(&("127.0.0.1".to_string(), port.clone()))
         .unwrap()
-        .get_async()
+        .get_std_server()
         .accept()
         .await
     {

@@ -8,6 +8,7 @@ use scraper::{Html, Node};
 use crate::protocol::{
     errors::{Error, ErrorKind},
     managers::{bits::encoder::BitEncoder, event::EventEncoder},
+    server::bits::utils::CHARS,
 };
 
 pub struct HtmlFileResponse {
@@ -57,6 +58,24 @@ impl HtmlFileResponse {
         Ok(())
     }
 
+    fn append_fyve_text(&mut self, text: &String) -> Result<(), Error> {
+        if text.trim().is_empty() {
+            return Err(Error {
+                code: 400,
+                message: "Empty text".to_string(),
+                kind: ErrorKind::BadRequest,
+            });
+        }
+
+        let chars = text.chars().collect::<Vec<char>>();
+
+        for c in chars {
+            self.encoder.add_bitvec(CHARS.get(&c).unwrap())?;
+        }
+
+        Ok(())
+    }
+
     fn process_node(
         &mut self,
         node: NodeRef<'_, Node>,
@@ -75,13 +94,13 @@ impl HtmlFileResponse {
                 open_elements.push(element_name.clone().to_owned());
 
                 self.encoder.add_data(16, 10)?;
-                self.encoder.add_bytes(element_name.as_bytes())?;
+                self.append_fyve_text(element_name)?;
 
                 if element.attrs.len() > 0 {
                     self.encoder.add_data(17, 10)?;
 
                     for (name, value) in element.attrs() {
-                        self.encoder.add_bytes(name.as_bytes())?;
+                        self.append_fyve_text(&name.to_string())?;
                         self.append_text(node, &value.to_string())?;
                     }
                 }

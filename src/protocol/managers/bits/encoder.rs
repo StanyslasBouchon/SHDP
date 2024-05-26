@@ -107,7 +107,7 @@ impl<R: BitReversible> FrameEncoder<R> {
 /// It is used to construct SHDP frames.
 ///
 ///
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BitEncoder<R: BitReversible> {
     /// The frame that contains the bits.
     pub frame: BitVec<u8, R>,
@@ -122,7 +122,7 @@ impl<R: BitReversible> BitEncoder<R> {
     }
 
     ///
-    /// Print the frame in the console.
+    /// Print the frame into the console.
     ///
     #[cfg(feature = "debug")]
     #[allow(dead_code)]
@@ -220,6 +220,36 @@ impl<R: BitReversible> BitEncoder<R> {
     pub fn add_bytes(&mut self, bytes: &[u8]) -> Result<&mut Self, Error> {
         for &byte in bytes {
             self.add_data(byte as u32, 8)?;
+        }
+
+        Ok(self)
+    }
+
+    ///
+    /// Adds a bitvec to the frame.
+    ///
+    /// # Arguments
+    /// * `bitvec` - The bitvec to add.
+    ///
+    /// # Errors
+    /// See [BitEncoder::add_data] for more information.
+    ///
+    /// # Example
+    /// ```rust
+    /// use bitvec::order::Lsb0;
+    /// use bitvec::vec::BitVec;
+    ///
+    /// use shdp::prelude::common::bits::BitEncoder;
+    ///
+    /// let mut encoder = BitEncoder::<Lsb0>::new();
+    /// let bitvec = BitVec::<u8, Lsb0>::from_elem(8, true);
+    /// encoder.add_bitvec(&bitvec).unwrap();
+    ///
+    /// assert_eq!(encoder.frame.len(), 8);
+    /// ```
+    pub fn add_bitvec(&mut self, bitvec: &BitVec<u8, R>) -> Result<&mut Self, Error> {
+        for bit in bitvec {
+            self.frame.push(*bit);
         }
 
         Ok(self)

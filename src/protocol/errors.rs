@@ -15,36 +15,52 @@ use std::fmt;
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum ErrorKind {
+    /// The request could not be understood by the server due to malformed syntax.
     BadRequest,
+    /// The request requires user authentication.
     Unauthorized,
+    /// The payment is required.
     PaymentRequired,
+    /// The server understood the request, but it refuses to authorize it.
     Forbidden,
+    /// The server has not found anything matching the request.
     NotFound,
+    /// The method specified in the request is not allowed for the resource identified by the request.
     MethodNotAllowed,
-    NotAcceptable,
+    /// The server cannot generate a response that the client will accept.
     RequestTimeout,
+    /// The request could not be completed due to a conflict with the current state of the resource.
     Conflict,
+    /// The requested resource is no longer available at the server and no forwarding address is known.
     Gone,
-    LengthRequired,
-    PreconditionFailed,
+    /// The request entity is larger than the server is willing or able to process.
     RequestEntityTooLarge,
-    RequestUriTooLong,
-    UnsupportedMediaType,
+    /// The request range is not satisfiable.
     RequestedRangeUnsatisfiable,
+    /// The server cannot or will not process the request due to an apparent client error.
     ExpectationFailed,
+    /// The request has expired.
     Expired,
-    BadMapping,
+    /// The resource is locked.
     Locked,
+    /// The server has not found anything matching the request.
     NoResponse,
+    /// The request has been canceled.
     Canceled,
+    /// The server encountered an unexpected condition that prevented it from fulfilling the request.
     InternalServerError,
+    /// The server does not support the functionality required to fulfill the request.
     NotImplemented,
+    /// The server is currently unable to handle the request due to a temporary overloading or maintenance of the server.
     ServiceUnavailable,
+    /// The request is larger than the server is willing or able to process.
     SizeConstraintViolation,
+    /// The server encountered an unexpected condition that prevented it from fulfilling the request.
     ProtocolError,
+    /// The server does not support the HTTP protocol version used in the request.
     UnknownVersion,
     ///
-    /// User defined error.
+    /// User defined error. It can be used to wrap any error type.
     ///
     /// # Example
     /// ```rust
@@ -67,30 +83,20 @@ impl fmt::Display for ErrorKind {
             ErrorKind::Forbidden => write!(f, "Forbidden"),
             ErrorKind::NotFound => write!(f, "NotFound"),
             ErrorKind::MethodNotAllowed => write!(f, "MethodNotAllowed"),
-            ErrorKind::NotAcceptable => write!(f, "NotAcceptable"),
             ErrorKind::RequestTimeout => write!(f, "RequestTimeout"),
             ErrorKind::Conflict => write!(f, "Conflict"),
             ErrorKind::Gone => write!(f, "Gone"),
-            ErrorKind::LengthRequired => write!(f, "LengthRequired"),
-            ErrorKind::PreconditionFailed => write!(f, "PreconditionFailed"),
-            ErrorKind::RequestEntityTooLarge =>
-                write!(f, "RequestEntityTooLarge"),
-            ErrorKind::RequestUriTooLong => write!(f, "RequestUriTooLong"),
-            ErrorKind::UnsupportedMediaType =>
-                write!(f, "UnsupportedMediaType"),
-            ErrorKind::RequestedRangeUnsatisfiable =>
-                write!(f, "RequestedRangeUnsatisfiable"),
+            ErrorKind::RequestEntityTooLarge => write!(f, "RequestEntityTooLarge"),
+            ErrorKind::RequestedRangeUnsatisfiable => write!(f, "RequestedRangeUnsatisfiable"),
             ErrorKind::ExpectationFailed => write!(f, "ExpectationFailed"),
             ErrorKind::Expired => write!(f, "Expired"),
-            ErrorKind::BadMapping => write!(f, "BadMapping"),
             ErrorKind::Locked => write!(f, "Locked"),
             ErrorKind::NoResponse => write!(f, "NoResponse"),
             ErrorKind::Canceled => write!(f, "Canceled"),
             ErrorKind::InternalServerError => write!(f, "InternalServerError"),
             ErrorKind::NotImplemented => write!(f, "NotImplemented"),
             ErrorKind::ServiceUnavailable => write!(f, "ServiceUnavailable"),
-            ErrorKind::SizeConstraintViolation =>
-                write!(f, "SizeConstraintViolation"),
+            ErrorKind::SizeConstraintViolation => write!(f, "SizeConstraintViolation"),
             ErrorKind::ProtocolError => write!(f, "ProtocolError"),
             ErrorKind::UnknownVersion => write!(f, "UnknownVersion"),
             ErrorKind::UserDefined(e) => write!(f, "{}", e),
@@ -126,6 +132,10 @@ pub struct Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error: [{}]:{} -> {}", self.kind, self.code, self.message)
+        write!(
+            f,
+            "Error: [{}]:{} -> {}",
+            self.kind, self.code, self.message
+        )
     }
 }

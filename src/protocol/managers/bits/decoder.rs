@@ -1,10 +1,6 @@
 use bitvec::vec::BitVec;
 
-use crate::protocol::errors::{ Error, ErrorKind };
-
-#[allow(unused_imports)]
-#[cfg(any(feature = "tcp-server", feature = "ws-server"))]
-use crate::protocol::server::versions::v1::r0x0000::ComponentNeedsRequest;
+use crate::protocol::errors::{Error, ErrorKind};
 
 use super::prelude::BitReversible;
 
@@ -15,6 +11,7 @@ use super::prelude::BitReversible;
 pub struct BitDecoder<R: BitReversible> {
     /// The frame to read data from.
     pub frame: BitVec<u8, R>,
+    /// The current bit position in the frame for reading purposes.
     pub position: usize,
 }
 
@@ -81,10 +78,7 @@ impl<R: BitReversible> BitDecoder<R> {
         let mut data = 0;
 
         for _ in 0..n {
-            let bit = self.frame
-                .get(self.position)
-                .map(|b| *b)
-                .unwrap_or(false);
+            let bit = self.frame.get(self.position).map(|b| *b).unwrap_or(false);
             data = (data << 1) | (bit as u32);
             self.position += 1;
         }
@@ -134,11 +128,7 @@ impl<R: BitReversible> BitDecoder<R> {
     /// );
     /// ```
     ///
-    pub fn read_vec(
-        &self,
-        from: usize,
-        to: usize
-    ) -> Result<BitVec<u8, R>, Error> {
+    pub fn read_vec(&self, from: usize, to: usize) -> Result<BitVec<u8, R>, Error> {
         if from >= self.frame.len() {
             return Err(Error {
                 code: 0b1100,
@@ -156,13 +146,27 @@ impl<R: BitReversible> BitDecoder<R> {
 /// It contains the version, the data size, the event, and the data.
 ///
 /// It represents every frame received or sent by the SHDP protocol.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Frame<R: BitReversible> {
+    ///
+    /// The version of the frame.
+    ///
+    /// See [SHDP version](crate::prelude::common::Version) for more information.
+    ///
     pub version: u8,
-    #[allow(dead_code)]
+    ///
+    /// The size of the data in bits.
+    ///
     pub data_size: u16,
+    ///
+    /// The event id of the frame.
+    ///
+    /// See [SHDP event](crate::prelude::common::event) for more information.
     pub event: u16,
-    #[allow(dead_code)]
+    ///
+    /// The data of the frame.
+    /// It is a [BitVec] of the data.
+    ///
     pub data: Box<BitVec<u8, R>>,
 }
 
@@ -198,7 +202,7 @@ pub struct Frame<R: BitReversible> {
 /// As you can see, the version is colored in blue, the event in green, and the data size in yellow.
 /// Here are their value:
 /// - version: `1`
-/// - event: `0` (which corresponds to the [ComponentNeedsRequest] event)
+/// - event: `0` (which corresponds to the [ComponentNeedsRequest](crate::protocol::server::versions::v1::r0x0000::ComponentNeedsRequest) event)
 /// - data size: `32`
 ///
 ///
@@ -218,16 +222,22 @@ pub struct Frame<R: BitReversible> {
 /// let received_data: Vec<u8> = encoder.encode();
 ///
 /// // First, we create the decoder from the received data.
-/// let decoder = BitDecoder::<Msb0>::new(received_data);
+/// let mut main_decoder = BitDecoder::<Msb0>::new(received_data);
+///
+/// // Then, we create a frame decoder from the bit decoder.
+/// let mut frame_decoder = FrameDecoder::<Msb0>::new(main_decoder.clone());
 ///
 /// // Then, we decode the data into an FrameDecoder object.
-/// let data: Frame<Msb0> = FrameDecoder::<Msb0>::new(decoder.clone())
+/// let data: Frame<Msb0> = frame_decoder
 ///     .decode()
 ///     .unwrap();
+///
+/// main_decoder = frame_decoder.get_decoder().to_owned();
 ///
 /// assert_eq!(data.version, 1);
 /// assert_eq!(data.event, 0);
 /// assert_eq!(data.data_size, 32);
+/// assert_eq!(main_decoder.position, 56);
 /// ```
 ///
 #[derive(Debug)]
@@ -244,6 +254,13 @@ impl<R: BitReversible> FrameDecoder<R> {
     ///
     pub fn new(decoder: BitDecoder<R>) -> Self {
         Self { decoder }
+    }
+
+    ///
+    /// Get the [BitDecoder] from the [FrameDecoder].
+    ///
+    pub fn get_decoder(&mut self) -> &mut BitDecoder<R> {
+        &mut self.decoder
     }
 
     ///
@@ -298,9 +315,7 @@ impl<R: BitReversible> FrameDecoder<R> {
         let event = self.decoder.read_data(16)? as u16;
         let data_size = self.decoder.read_data(32)? as u16;
 
-        let data = Box::new(
-            self.decoder.read_vec(56, 56 + (data_size as usize))?
-        );
+        let data = Box::new(self.decoder.read_vec(56, 56 + (data_size as usize))?);
 
         Ok(Frame {
             version,

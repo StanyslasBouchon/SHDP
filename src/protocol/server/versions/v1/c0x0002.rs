@@ -36,7 +36,7 @@ impl EventEncoder<Lsb0> for ErrorResponse {
         match self.encoder.add_data(0, 8) {
             Err(e) => panic!("Error adding data: {}", e),
             _ => (),
-        }
+        } // Separator
 
         match self.encoder.add_bytes(self.error.message.as_bytes()) {
             Err(e) => panic!("Error adding bytes: {}", e),

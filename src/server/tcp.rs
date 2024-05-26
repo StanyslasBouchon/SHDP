@@ -1,10 +1,10 @@
-use std::{
-    io::{Error, Read, Write},
-    net::TcpListener,
-    thread,
-};
+use std::thread;
 
 use bitvec::order::{Lsb0, Msb0};
+use tokio::{
+    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, Error},
+    net::TcpListener,
+};
 
 use crate::{
     protocol::{
@@ -12,9 +12,12 @@ use crate::{
             decoder::{BitDecoder, FrameDecoder},
             encoder::FrameEncoder,
         },
-        prelude::common::registry::EVENT_REGISTRY_MSB,
+        prelude::common::{
+            registry::EVENT_REGISTRY_MSB,
+            utils::{Listener, DEVICES},
+        },
     },
-    server::prelude::{answer_error, Listener, DEVICES},
+    server::prelude::answer_error,
 };
 
 ///
@@ -36,56 +39,60 @@ use crate::{
 /// ```rust,no_run
 /// use shdp::prelude::server::tcp::listen;
 ///
-/// match listen(String::from("8080")) {
-///     Ok(_) => println!("Listening on port 8080"),
-///     Err(e) => println!("Error: {:?}", e),
+/// #[tokio::main]
+/// async fn main() {
+///     match listen(String::from("8080")).await {
+///         Ok(_) => println!("Listening on port 8080"),
+///         Err(e) => println!("Error: {:?}", e),
+///     }
 /// }
+///
 /// ```
-pub fn listen(port: String) -> Result<(), Error> {
-    let listener = TcpListener::bind(format!("127.0.0.1:{}", port))?;
+#[allow(unused_must_use)]
+pub async fn listen(port: String) -> Result<(), Error> {
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
+    let static_listener: &'static TcpListener = Box::leak(Box::new(listener));
 
     DEVICES.lock().unwrap().insert(
         ("127.0.0.1".to_string(), port.clone()),
-        Listener::Sync(listener),
+        Listener::TokioServer(static_listener),
     );
 
     println!("[SHDP:TCP] Listening on port {}", port.clone());
 
-    for stream in DEVICES
+    while let Ok((stream, _)) = DEVICES
         .lock()
         .unwrap()
         .get(&("127.0.0.1".to_string(), port.clone()))
         .unwrap()
-        .get_sync()
-        .incoming()
+        .get_tokio_server()
+        .accept()
+        .await
     {
-        match stream {
-            Ok(stream) => {
-                thread::spawn(|| {
-                    println!(
-                        "[SHDP:TCP] New connection from {}",
-                        stream.peer_addr().unwrap()
-                    );
+        thread::spawn(move || {
+            println!(
+                "[SHDP:TCP] New connection from {}",
+                stream.peer_addr().unwrap()
+            );
 
-                    handle_client(stream);
-                });
-            }
-            Err(e) => return Err(e),
-        }
+            handle_client(stream);
+        });
     }
 
     Ok(())
 }
 
-pub fn handle_client<S: Read + Write>(mut stream: S) {
+pub async fn handle_client<IO: AsyncRead + AsyncWrite + Unpin>(mut stream: IO) {
     let mut buffer = [0u8; 2usize.pow(32) / 8];
 
     loop {
-        match stream.read(&mut buffer) {
+        match stream.read(&mut buffer).await {
             Ok(0) => break,
             Ok(size) => {
-                let decoder = BitDecoder::<Msb0>::new(buffer[..size].to_vec());
-                let data = FrameDecoder::<Msb0>::new(decoder.clone()).decode().unwrap();
+                let mut decoder = BitDecoder::<Msb0>::new(buffer[..size].to_vec());
+                let mut frame_decoder = FrameDecoder::<Msb0>::new(decoder);
+                let data = frame_decoder.decode().unwrap();
+                decoder = frame_decoder.get_decoder().to_owned();
 
                 let registry = EVENT_REGISTRY_MSB.lock().unwrap();
                 let factory = match registry.get_event((data.version, data.event)) {
@@ -105,6 +112,7 @@ pub fn handle_client<S: Read + Write>(mut stream: S) {
                                     kind: crate::protocol::errors::ErrorKind::NotFound,
                                 },
                             ))
+                            .await
                             .unwrap();
 
                         return;
@@ -112,10 +120,13 @@ pub fn handle_client<S: Read + Write>(mut stream: S) {
                 };
 
                 let mut event = factory(decoder);
-                match event.decode() {
+                match event.decode(data.clone()) {
                     Ok(_) => (),
                     Err(e) => {
-                        stream.write_all(&answer_error(data.version, e)).unwrap();
+                        stream
+                            .write_all(&answer_error(data.version, e))
+                            .await
+                            .unwrap();
                         return;
                     }
                 }
@@ -123,7 +134,10 @@ pub fn handle_client<S: Read + Write>(mut stream: S) {
                 let responses = match event.get_responses() {
                     Ok(responses) => responses,
                     Err(e) => {
-                        stream.write_all(&answer_error(data.version, e)).unwrap();
+                        stream
+                            .write_all(&answer_error(data.version, e))
+                            .await
+                            .unwrap();
                         return;
                     }
                 };
@@ -139,7 +153,7 @@ pub fn handle_client<S: Read + Write>(mut stream: S) {
 
                     let frame = encoder.encode(response).unwrap();
 
-                    match stream.write_all(&frame) {
+                    match stream.write_all(&frame).await {
                         Ok(_) => (),
                         Err(e) => {
                             println!("[SHDP:TCP] Error writing to stream: {}", e);

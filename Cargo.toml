@@ -21,18 +21,19 @@ scraper = {version = "0.19.0", optional = true}
 serde = {version = "1.0.199", optional = true}
 serde_json = {version = "1.0.116", optional = true}
 tokio = { version = "1.37.0", features = ["full", "sync", "test-util"], optional = true }
+tokio-openssl = { version = "0.6.4", optional = true }
 tungstenite = {version = "0.21.0", optional = true}
 
 
 [features]
-default = ["wss-client", "tls-client", "tls-server", "wss-server", "debug", "serde"]
+default = ["wss-client", "wss-server", "ws-client", "ws-server", "tls-client", "tls-server", "tcp-client", "tls-server", "serde", "debug"]
 serde = ["dep:serde", "dep:serde_json"]
-tcp-server = ["html-minifier", "ego-tree", "scraper"]
-tcp-client = []
+tcp-server = ["html-minifier", "ego-tree", "scraper", "dep:tokio", "async-std"]
+tcp-client = ["dep:tokio"]
 ws-server = ["html-minifier", "ego-tree", "scraper", "async-std", "futures", "dep:tokio", "tungstenite", "dep:async-tungstenite"]
-ws-client = []
+ws-client = ["tungstenite", "dep:tokio"]
 wss-server = ["ws-server", "async-tls", "rustls", "rustls-pemfile"]
-wss-client = ["ws-client"]
-tls-client = ["tcp-client"]
-tls-server = ["tcp-server", "openssl"]
+wss-client = ["ws-client", "openssl"]
+tls-client = ["tcp-client", "openssl", "dep:tokio-openssl"]
+tls-server = ["tcp-server", "openssl", "dep:tokio-openssl"]
 debug = []
