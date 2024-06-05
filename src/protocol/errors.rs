@@ -7,10 +7,8 @@ use std::fmt;
 /// ```rust
 /// use shdp::prelude::common::error::ErrorKind;
 ///
-/// fn main() {
-///     let error = ErrorKind::NotFound;
-///     println!("{}", error);
-/// }
+/// let error = ErrorKind::NotFound;
+/// println!("{}", error);
 /// ```
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -86,8 +84,10 @@ impl fmt::Display for ErrorKind {
             ErrorKind::RequestTimeout => write!(f, "RequestTimeout"),
             ErrorKind::Conflict => write!(f, "Conflict"),
             ErrorKind::Gone => write!(f, "Gone"),
-            ErrorKind::RequestEntityTooLarge => write!(f, "RequestEntityTooLarge"),
-            ErrorKind::RequestedRangeUnsatisfiable => write!(f, "RequestedRangeUnsatisfiable"),
+            ErrorKind::RequestEntityTooLarge =>
+                write!(f, "RequestEntityTooLarge"),
+            ErrorKind::RequestedRangeUnsatisfiable =>
+                write!(f, "RequestedRangeUnsatisfiable"),
             ErrorKind::ExpectationFailed => write!(f, "ExpectationFailed"),
             ErrorKind::Expired => write!(f, "Expired"),
             ErrorKind::Locked => write!(f, "Locked"),
@@ -96,7 +96,8 @@ impl fmt::Display for ErrorKind {
             ErrorKind::InternalServerError => write!(f, "InternalServerError"),
             ErrorKind::NotImplemented => write!(f, "NotImplemented"),
             ErrorKind::ServiceUnavailable => write!(f, "ServiceUnavailable"),
-            ErrorKind::SizeConstraintViolation => write!(f, "SizeConstraintViolation"),
+            ErrorKind::SizeConstraintViolation =>
+                write!(f, "SizeConstraintViolation"),
             ErrorKind::ProtocolError => write!(f, "ProtocolError"),
             ErrorKind::UnknownVersion => write!(f, "UnknownVersion"),
             ErrorKind::UserDefined(e) => write!(f, "{}", e),
@@ -110,15 +111,13 @@ impl fmt::Display for ErrorKind {
 /// ```rust
 /// use shdp::prelude::common::error::{Error, ErrorKind};
 ///
-/// fn main() {
-///     let error = Error {
-///         code: 404,
-///         message: "Not Found".to_string(),
-///         kind: ErrorKind::NotFound,
-///     };
+/// let error = Error {
+///     code: 404,
+///     message: "Not Found".to_string(),
+///     kind: ErrorKind::NotFound,
+/// };
 ///
-///     println!("{}", error);
-/// }
+/// println!("{}", error);
 /// ```
 #[derive(Debug)]
 pub struct Error {
@@ -132,10 +131,6 @@ pub struct Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Error: [{}]:{} -> {}",
-            self.kind, self.code, self.message
-        )
+        write!(f, "Error: [{}]:{} -> {}", self.kind, self.code, self.message)
     }
 }

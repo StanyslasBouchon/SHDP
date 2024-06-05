@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, Once};
+use std::sync::{ Arc, Mutex, Once };
 
-use bitvec::order::{Lsb0, Msb0};
+use bitvec::order::{ Lsb0, Msb0 };
 use ctor::ctor;
 use lazy_static::lazy_static;
 
@@ -13,15 +13,19 @@ use crate::client::prelude::versions::v1::r0x0002::ErrorResponse;
 use crate::client::prelude::versions::v1::r0x0003::ComponentNeedsResponse;
 #[cfg(any(feature = "tcp-client", feature = "ws-client"))]
 use crate::client::prelude::versions::v1::r0x0004::FullFyveResponse;
-#[cfg(all(any(feature = "tcp-client", feature = "ws-client"), feature = "serde"))]
+#[cfg(
+    all(any(feature = "tcp-client", feature = "ws-client"), feature = "serde")
+)]
 use crate::client::prelude::versions::v1::r0x0006::InteractionResponse;
 use crate::protocol::managers::bits::prelude::BitReversible;
 use crate::protocol::managers::event::EventDecoder;
 #[cfg(any(feature = "tcp-server", feature = "ws-server"))]
 use crate::protocol::server::versions::v1::r0x0000::ComponentNeedsRequest;
-#[cfg(all(feature = "serde", any(feature = "tcp-server", feature = "ws-server")))]
+#[cfg(
+    all(feature = "serde", any(feature = "tcp-server", feature = "ws-server"))
+)]
 use crate::protocol::server::versions::v1::r0x0005::InteractionRequest;
-use crate::protocol::{args::Arg, managers::bits::decoder::BitDecoder};
+use crate::protocol::{ args::Arg, managers::bits::decoder::BitDecoder };
 
 ///
 /// The event id is a tuple that represents the version and the event code: (version, event_code).
@@ -32,13 +36,17 @@ pub type EventId = (u8, u16);
 /// The event function is a function that will be called when the event is received.<br>
 /// It allows parsing the corresponding event to its structure.
 ///
-pub type EventFn<R> = fn(bit_decoder: BitDecoder<R>) -> Box<dyn EventDecoder<R>>;
+pub type EventFn<R> = fn(
+    bit_decoder: BitDecoder<R>
+) -> Box<dyn EventDecoder<R>>;
 
 ///
 /// The listener function is a function that will be called when the event is received.
 /// It allows getting the resources needed to answer the event.
 ///
-pub type ListenerFn<R> = fn(event_decoder: Box<dyn EventDecoder<R>>) -> Box<[Arg]>;
+pub type ListenerFn<R> = fn(
+    event_decoder: Box<dyn EventDecoder<R>>
+) -> Box<[Arg]>;
 
 ///
 /// The event registry is a structure that permits storing events and listeners.
@@ -156,7 +164,11 @@ impl<R: BitReversible> EventRegistry<R> {
     /// * `event_id.1` - The event code.
     /// * `listener_fn` - The listener function that will be called when the event is received.
     ///
-    pub fn add_listener(&mut self, event_id: EventId, listener_fn: ListenerFn<R>) {
+    pub fn add_listener(
+        &mut self,
+        event_id: EventId,
+        listener_fn: ListenerFn<R>
+    ) {
         self.listeners.insert(event_id, listener_fn);
     }
 }
@@ -189,16 +201,19 @@ fn init() {
         // ** Version 1 **
 
         #[cfg(any(feature = "tcp-server", feature = "ws-server"))]
-        EVENT_REGISTRY_MSB
-            .lock()
+        EVENT_REGISTRY_MSB.lock()
             .unwrap()
             .add_event((1, 0x0000), |decoder| {
                 Box::new(ComponentNeedsRequest::new(decoder))
             });
 
-        #[cfg(all(feature = "serde", any(feature = "tcp-server", feature = "ws-server")))]
-        EVENT_REGISTRY_MSB
-            .lock()
+        #[cfg(
+            all(
+                feature = "serde",
+                any(feature = "tcp-server", feature = "ws-server")
+            )
+        )]
+        EVENT_REGISTRY_MSB.lock()
             .unwrap()
             .add_event((1, 0x0005), |decoder| {
                 Box::new(InteractionRequest::new(decoder))
@@ -211,38 +226,40 @@ fn init() {
         // ** Version 1 **
 
         #[cfg(any(feature = "tcp-client", feature = "ws-client"))]
-        EVENT_REGISTRY_MSB
-            .lock()
+        EVENT_REGISTRY_MSB.lock()
             .unwrap()
             .add_event((1, 0x0001), |decoder| {
                 Box::new(HtmlFileResponse::new(decoder))
             });
 
         #[cfg(any(feature = "tcp-client", feature = "ws-client"))]
-        EVENT_REGISTRY_LSB
-            .lock()
+        EVENT_REGISTRY_MSB.lock()
             .unwrap()
-            .add_event((1, 0x0002), |decoder| Box::new(ErrorResponse::new(decoder)));
+            .add_event((1, 0x0002), |decoder|
+                Box::new(ErrorResponse::new(decoder))
+            );
 
         #[cfg(any(feature = "tcp-client", feature = "ws-client"))]
-        EVENT_REGISTRY_LSB
-            .lock()
+        EVENT_REGISTRY_MSB.lock()
             .unwrap()
             .add_event((1, 0x0003), |decoder| {
                 Box::new(ComponentNeedsResponse::new(decoder))
             });
 
         #[cfg(any(feature = "tcp-client", feature = "ws-client"))]
-        EVENT_REGISTRY_MSB
-            .lock()
+        EVENT_REGISTRY_MSB.lock()
             .unwrap()
             .add_event((1, 0x0004), |decoder| {
                 Box::new(FullFyveResponse::new(decoder))
             });
 
-        #[cfg(all(any(feature = "tcp-client", feature = "ws-client"), feature = "serde"))]
-        EVENT_REGISTRY_LSB
-            .lock()
+        #[cfg(
+            all(
+                any(feature = "tcp-client", feature = "ws-client"),
+                feature = "serde"
+            )
+        )]
+        EVENT_REGISTRY_MSB.lock()
             .unwrap()
             .add_event((1, 0x0006), |decoder| {
                 Box::new(InteractionResponse::new(decoder))

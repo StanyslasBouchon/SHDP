@@ -1,13 +1,13 @@
-use std::{fs::File, io::Read, path::Path, str::from_utf8};
+use std::{ fs::File, io::Read, path::Path, str::from_utf8 };
 
 use bitvec::order::Lsb0;
 use ego_tree::NodeRef;
 use html_minifier::HTMLMinifier;
-use scraper::{Html, Node};
+use scraper::{ Html, Node };
 
 use crate::protocol::{
-    errors::{Error, ErrorKind},
-    managers::{bits::encoder::BitEncoder, event::EventEncoder},
+    errors::{ Error, ErrorKind },
+    managers::{ bits::encoder::BitEncoder, event::EventEncoder },
     server::bits::utils::CHARS,
 };
 
@@ -19,10 +19,7 @@ pub struct HtmlFileResponse {
 impl HtmlFileResponse {
     pub fn new(path: String) -> Self {
         if cfg!(feature = "debug") {
-            println!(
-                "[\x1b[38;5;227mSHDP\x1b[0m] \x1b[38;5;205m0x0001\x1b[0m created ({})",
-                path
-            );
+            println!("[\x1b[38;5;227mSHDP\x1b[0m] \x1b[38;5;205m0x0001\x1b[0m created ({})", path);
         }
 
         HtmlFileResponse {
@@ -31,7 +28,11 @@ impl HtmlFileResponse {
         }
     }
 
-    fn append_text(&mut self, node: NodeRef<'_, Node>, text: &String) -> Result<(), Error> {
+    fn append_text(
+        &mut self,
+        node: NodeRef<'_, Node>,
+        text: &String
+    ) -> Result<(), Error> {
         if text.trim().is_empty() {
             return Ok(());
         }
@@ -48,7 +49,9 @@ impl HtmlFileResponse {
                     return Ok(());
                 }
             }
-            None => return Ok(()),
+            None => {
+                return Ok(());
+            }
         }
 
         self.encoder.add_data(0, 10)?;
@@ -79,17 +82,11 @@ impl HtmlFileResponse {
     fn process_node(
         &mut self,
         node: NodeRef<'_, Node>,
-        open_elements: &mut Vec<String>,
+        open_elements: &mut Vec<String>
     ) -> Result<(), Error> {
         match node.value() {
             Node::Element(element) => {
                 let element_name = &element.name().to_string();
-
-                if element_name == "html" {
-                    for child in node.children() {
-                        self.process_node(child, open_elements)?;
-                    }
-                }
 
                 open_elements.push(element_name.clone().to_owned());
 
@@ -184,11 +181,15 @@ fn get_minified_html_file(path: String) -> Result<String, Error> {
         Err(e) => {
             return Err(Error {
                 code: 500,
-                message: format!("File read error: ({}): {}", path, e.to_string()),
+                message: format!(
+                    "File read error: ({}): {}",
+                    path,
+                    e.to_string()
+                ),
                 kind: ErrorKind::InternalServerError,
             });
         }
-    };
+    }
 
     let mut minifier = HTMLMinifier::new();
     minifier.set_minify_code(true);
@@ -198,7 +199,11 @@ fn get_minified_html_file(path: String) -> Result<String, Error> {
         Err(e) => {
             return Err(Error {
                 code: 500,
-                message: format!("HTML minify error: ({}): {}", path, e.to_string()),
+                message: format!(
+                    "HTML minify error: ({}): {}",
+                    path,
+                    e.to_string()
+                ),
                 kind: ErrorKind::InternalServerError,
             });
         }
@@ -209,9 +214,13 @@ fn get_minified_html_file(path: String) -> Result<String, Error> {
         Err(e) => {
             return Err(Error {
                 code: 500,
-                message: format!("HTML minify error: ({}): {}", path, e.to_string()),
+                message: format!(
+                    "HTML minify error: ({}): {}",
+                    path,
+                    e.to_string()
+                ),
                 kind: ErrorKind::InternalServerError,
-            })
+            });
         }
     };
 

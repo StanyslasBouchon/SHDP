@@ -10,6 +10,7 @@ pub mod versions {
 pub mod tcp {
     //! The TCP client module.
     pub use crate::client::tcp::connect;
+    pub use crate::client::tcp::send_raw_event;
 }
 
 #[cfg(feature = "ws-client")]

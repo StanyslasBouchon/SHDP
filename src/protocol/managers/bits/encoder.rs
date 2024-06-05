@@ -1,7 +1,7 @@
 use bitvec::vec::BitVec;
 
 use crate::protocol::{
-    errors::{Error, ErrorKind},
+    errors::{ Error, ErrorKind },
     managers::event::EventEncoder,
     versions::Version,
 };
@@ -24,6 +24,7 @@ use super::prelude::BitReversible;
 /// let mut encoder = FrameEncoder::<Lsb0>::new(1).unwrap();
 /// ```
 ///
+#[derive(Debug)]
 pub struct FrameEncoder<R: BitReversible> {
     encoder: BitEncoder<R>,
     version: Version,
@@ -56,13 +57,16 @@ impl<R: BitReversible> FrameEncoder<R> {
     ///
     /// See [EventEncoder] for more information.
     ///
-    pub fn encode(&mut self, mut frame: Box<dyn EventEncoder<R>>) -> Result<Vec<u8>, Error> {
+    pub fn encode(
+        &mut self,
+        mut frame: Box<dyn EventEncoder<R>>
+    ) -> Result<Vec<u8>, Error> {
         self.encoder.add_data(self.version.to_u8() as u32, 8)?;
         frame.encode()?;
 
         let data_size = frame.get_encoder().frame.len();
 
-        if data_size > (1 << 32) {
+        if data_size > 1 << 32 {
             return Err(Error {
                 code: 0b1000,
                 message: "Maximum of 2^32 bits allowed".to_string(),
@@ -171,7 +175,7 @@ impl<R: BitReversible> BitEncoder<R> {
     /// assert_eq!(encoder.add_data(1, 1).is_ok(), true);
     /// ```
     pub fn add_data(&mut self, data: u32, n: u8) -> Result<&mut Self, Error> {
-        if self.frame.len() + n as usize > (1 << 32) {
+        if self.frame.len() + (n as usize) > 1 << 32 {
             return Err(Error {
                 code: 0b1000,
                 message: "Maximum of 2^32 bits allowed".to_string(),
@@ -237,17 +241,20 @@ impl<R: BitReversible> BitEncoder<R> {
     /// # Example
     /// ```rust
     /// use bitvec::order::Lsb0;
-    /// use bitvec::vec::BitVec;
+    /// use bitvec::bitvec;
     ///
     /// use shdp::prelude::common::bits::BitEncoder;
     ///
     /// let mut encoder = BitEncoder::<Lsb0>::new();
-    /// let bitvec = BitVec::<u8, Lsb0>::from_elem(8, true);
+    /// let bitvec = bitvec![u8, Lsb0; 1, 0, 1, 0, 1, 0, 1, 0];
     /// encoder.add_bitvec(&bitvec).unwrap();
     ///
     /// assert_eq!(encoder.frame.len(), 8);
     /// ```
-    pub fn add_bitvec(&mut self, bitvec: &BitVec<u8, R>) -> Result<&mut Self, Error> {
+    pub fn add_bitvec(
+        &mut self,
+        bitvec: &BitVec<u8, R>
+    ) -> Result<&mut Self, Error> {
         for bit in bitvec {
             self.frame.push(*bit);
         }
@@ -280,7 +287,10 @@ impl<R: BitReversible> BitEncoder<R> {
     }
 
     fn reverse_bits_in_bytes(&self, input: &[u8]) -> Vec<u8> {
-        input.iter().map(|&byte| byte.reverse_bits()).collect()
+        input
+            .iter()
+            .map(|&byte| byte.reverse_bits())
+            .collect()
     }
 
     ///

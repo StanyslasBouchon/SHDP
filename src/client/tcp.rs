@@ -1,18 +1,19 @@
-use bitvec::order::{Lsb0, Msb0};
+use bitvec::order::{ Lsb0, Msb0 };
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    io::{ AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt },
     net::TcpStream,
 };
 
 use crate::protocol::{
     managers::bits::{
-        decoder::{BitDecoder, FrameDecoder},
+        decoder::{ BitDecoder, FrameDecoder },
         encoder::FrameEncoder,
     },
     prelude::common::{
-        error::{Error, ErrorKind},
+        error::{ Error, ErrorKind },
+        event::EventEncoder,
         registry::EVENT_REGISTRY_MSB,
-        utils::{Listener, DEVICES},
+        utils::{ Listener, DEVICES },
     },
 };
 
@@ -62,10 +63,12 @@ pub async fn connect(ip: String, port: String) -> Result<(), Error> {
     };
     let static_stream: &'static mut TcpStream = Box::leak(Box::new(stream));
 
-    DEVICES.lock().unwrap().insert(
-        (ip.clone(), port.clone()),
-        Listener::TokioClient(static_stream),
-    );
+    DEVICES.lock()
+        .unwrap()
+        .insert(
+            (ip.clone(), port.clone()),
+            Listener::TokioClient(static_stream)
+        );
 
     println!("[SHDP:TCP] Connected to {}:{}", ip.clone(), port.clone());
 
@@ -80,27 +83,97 @@ pub async fn connect(ip: String, port: String) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn handle_client<IO: AsyncRead + AsyncWrite + Unpin>(
-    stream: &mut IO,
+///
+/// Sends a raw event to a SHDP client.
+///
+/// # Arguments
+/// * `to` - The IP and port of the client.
+/// * `event` - The event to send.
+///
+/// # Returns
+/// * [Result<(), Error>] - The result of the operation.
+///
+/// # Example
+/// ```rust,no_run
+/// use shdp::prelude::client::tcp::send_raw_event;
+/// use shdp::prelude::common::bits::FrameEncoder;
+/// use shdp::prelude::common::error::Error;
+/// use shdp::prelude::common::event::EventEncoder;
+/// use bitvec::order::Lsb0;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let event = Box::new(FrameEncoder::<Lsb0>::new(1).unwrap());
+///     match send_raw_event(
+///         (String::from("157.165.164.160"), String::from("8080")),
+///         event
+///     ).await {
+///         Ok(_) => println!("Event sent"),
+///         Err(e) => println!("Error: {:?}", e),
+///     }
+/// }
+/// ```
+///
+pub async fn send_raw_event(
+    to: (String, String),
+    event: Box<dyn EventEncoder<Lsb0>>
 ) -> Result<(), Error> {
-    let mut buffer = [0u8; 2usize.pow(32) / 8];
+    let mut devices = DEVICES.lock().unwrap();
+    let stream = devices.get_mut(&to).unwrap().get_tokio_client();
+
+    let mut encoder = match FrameEncoder::<Lsb0>::new(1) {
+        Ok(encoder) => encoder,
+        Err(e) => {
+            println!("[SHDP:TCP] Error creating encoder: {}", e);
+            return Err(e);
+        }
+    };
+
+    let frame = encoder.encode(event).unwrap();
+
+    match stream.write_all(&frame).await {
+        Ok(_) => (),
+        Err(e) => {
+            println!("[SHDP:TCP] Error writing to stream: {}", e);
+            return Err(Error {
+                code: 0,
+                message: e.to_string(),
+                kind: ErrorKind::UserDefined(Box::new(e)),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn handle_client<IO: AsyncRead + AsyncWrite + Unpin>(
+    stream: &mut IO
+) -> Result<(), Error> {
+    let mut buffer = [0u8; (2usize).pow(32) / 8];
 
     loop {
         match stream.read(&mut buffer).await {
-            Ok(0) => break,
+            Ok(0) => {
+                break;
+            }
             Ok(size) => {
-                let mut decoder = BitDecoder::<Msb0>::new(buffer[..size].to_vec());
+                let mut decoder = BitDecoder::<Msb0>::new(
+                    buffer[..size].to_vec()
+                );
                 let mut frame_decoder = FrameDecoder::<Msb0>::new(decoder);
                 let data = frame_decoder.decode().unwrap();
                 decoder = frame_decoder.get_decoder().to_owned();
 
                 let registry = EVENT_REGISTRY_MSB.lock().unwrap();
-                let factory = match registry.get_event((data.version, data.event)) {
+                let factory = match
+                    registry.get_event((data.version, data.event))
+                {
                     Some(event) => event,
                     None => {
                         println!(
                             "[SHDP:TCP] Event not found: {} <-> {}",
-                            data.version, data.event
+                            data.version,
+                            data.event
                         );
 
                         return Err(Error {
@@ -117,7 +190,9 @@ pub async fn handle_client<IO: AsyncRead + AsyncWrite + Unpin>(
                 let responses = event.get_responses()?;
 
                 for response in responses {
-                    let mut encoder = match FrameEncoder::<Lsb0>::new(data.version) {
+                    let mut encoder = match
+                        FrameEncoder::<Lsb0>::new(data.version)
+                    {
                         Ok(encoder) => encoder,
                         Err(e) => {
                             println!("[SHDP:TCP] Error creating encoder: {}", e);

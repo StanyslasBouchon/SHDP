@@ -1,10 +1,11 @@
-use std::{fs::File, io::Read, path::Path};
+use std::{ fs::File, io::Read, path::Path };
 
 use bitvec::order::Lsb0;
 
 use crate::protocol::{
     errors::Error,
-    managers::{bits::encoder::BitEncoder, event::EventEncoder},
+    managers::{ bits::encoder::BitEncoder, event::EventEncoder },
+    server::bits::utils::CHARS,
 };
 
 pub struct FullFyveResponse {
@@ -15,10 +16,7 @@ pub struct FullFyveResponse {
 impl FullFyveResponse {
     pub fn new(path: String) -> Self {
         if cfg!(feature = "debug") {
-            println!(
-                "[\x1b[38;5;227mSHDP\x1b[0m] \x1b[38;5;192m0x0004\x1b[0m created ({})",
-                path
-            );
+            println!("[\x1b[38;5;227mSHDP\x1b[0m] \x1b[38;5;192m0x0004\x1b[0m created ({})", path);
         }
 
         FullFyveResponse {
@@ -55,7 +53,7 @@ impl EventEncoder<Lsb0> for FullFyveResponse {
                     code: 404,
                     message: format!("File not found: {}", self.path),
                     kind: crate::protocol::errors::ErrorKind::NotFound,
-                })
+                });
             }
         };
 
@@ -67,11 +65,15 @@ impl EventEncoder<Lsb0> for FullFyveResponse {
                     code: 500,
                     message: format!("File read error: {}", self.path),
                     kind: crate::protocol::errors::ErrorKind::InternalServerError,
-                })
+                });
             }
-        };
+        }
 
-        self.encoder.add_bytes(content.as_bytes())?;
+        for byte in content.as_bytes().iter() {
+            self.encoder.add_bitvec(
+                CHARS.get(&(byte.to_owned() as char)).unwrap()
+            )?;
+        }
 
         Ok(())
     }

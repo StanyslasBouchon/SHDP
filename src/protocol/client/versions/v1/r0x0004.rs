@@ -5,11 +5,11 @@
 use bitvec::order::Msb0;
 
 use crate::protocol::{
-    client::bits::utils::{FyveImpl, OperatingCode},
+    client::bits::utils::{ FyveImpl, OperatingCode },
     prelude::common::{
-        bits::{util::BitReversible, BitDecoder, Frame},
+        bits::{ util::BitReversible, BitDecoder, Frame },
         error::Error,
-        event::{EventDecoder, EventEncoder},
+        event::{ EventDecoder, EventEncoder },
     },
 };
 
@@ -49,7 +49,9 @@ impl FullFyveResponse {
     /// ```
     pub fn new(decoder: BitDecoder<Msb0>) -> Self {
         if cfg!(feature = "debug") {
-            println!("[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0004\x1b[0m received");
+            println!(
+                "[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0004\x1b[0m received"
+            );
         }
 
         FullFyveResponse {
@@ -61,7 +63,7 @@ impl FullFyveResponse {
 }
 
 impl EventDecoder<Msb0> for FullFyveResponse {
-    fn decode(&mut self, _: Frame<Msb0>) -> Result<(), Error> {
+    fn decode(&mut self, frame: Frame<Msb0>) -> Result<(), Error> {
         // Read bytes till hits 0.
         let mut bytes = Vec::<u8>::new();
 
@@ -79,7 +81,7 @@ impl EventDecoder<Msb0> for FullFyveResponse {
         let mut content = String::new();
 
         loop {
-            if self.decoder.position >= self.decoder.frame.len() {
+            if self.decoder.position >= (frame.data_size + 56).into() {
                 break;
             }
 
@@ -103,8 +105,11 @@ impl EventDecoder<Msb0> for FullFyveResponse {
     }
 
     fn get_responses(
-        &self,
-    ) -> Result<Vec<Box<dyn EventEncoder<<Msb0 as BitReversible>::Opposite>>>, Error> {
+        &self
+    ) -> Result<
+        Vec<Box<dyn EventEncoder<<Msb0 as BitReversible>::Opposite>>>,
+        Error
+    > {
         Ok(Vec::new())
     }
 }

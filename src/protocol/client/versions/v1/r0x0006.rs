@@ -2,20 +2,20 @@
 //! Defines everything for the 0x0006 event.
 //!
 
-use bitvec::order::Lsb0;
+use bitvec::order::Msb0;
 use serde_json::Value;
 
 use crate::protocol::prelude::common::{
-    bits::{util::BitReversible, BitDecoder, Frame},
+    bits::{ util::BitReversible, BitDecoder, Frame },
     error::Error,
-    event::{EventDecoder, EventEncoder},
+    event::{ EventDecoder, EventEncoder },
 };
 
 ///
 /// Describe an interaction response.
 ///
 pub struct InteractionResponse {
-    decoder: BitDecoder<Lsb0>,
+    decoder: BitDecoder<Msb0>,
     /// The request ID.
     pub request_id: u64,
     /// The file's content.
@@ -27,7 +27,7 @@ impl InteractionResponse {
     /// Creates a new [InteractionResponse].
     ///
     /// # Arguments
-    /// * `decoder` - The [`BitDecoder<Lsb0>`] to decode the request.
+    /// * `decoder` - The [`BitDecoder<Msb0>`] to decode the request.
     ///
     /// # Returns
     /// * [InteractionResponse] - The created [InteractionResponse].
@@ -36,18 +36,20 @@ impl InteractionResponse {
     /// ```rust
     /// use shdp::prelude::client::versions::v1::r0x0006::InteractionResponse;
     /// use shdp::prelude::common::bits::BitDecoder;
-    /// use bitvec::order::Lsb0;
+    /// use bitvec::order::Msb0;
     ///
-    /// let decoder = BitDecoder::<Lsb0>::new(Vec::new());
+    /// let decoder = BitDecoder::<Msb0>::new(Vec::new());
     /// let response = InteractionResponse::new(decoder);
     ///
     /// // These are default values.
     /// assert_eq!(response.request_id, 0);
     /// assert_eq!(response.response, None);
     /// ```
-    pub fn new(decoder: BitDecoder<Lsb0>) -> Self {
+    pub fn new(decoder: BitDecoder<Msb0>) -> Self {
         if cfg!(feature = "debug") {
-            println!("[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0006\x1b[0m received");
+            println!(
+                "[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0006\x1b[0m received"
+            );
         }
 
         InteractionResponse {
@@ -58,8 +60,8 @@ impl InteractionResponse {
     }
 }
 
-impl EventDecoder<Lsb0> for InteractionResponse {
-    fn decode(&mut self, _: Frame<Lsb0>) -> Result<(), Error> {
+impl EventDecoder<Msb0> for InteractionResponse {
+    fn decode(&mut self, frame: Frame<Msb0>) -> Result<(), Error> {
         let upper_id = self.decoder.read_data(32)? >> 0;
         let lower_id = self.decoder.read_data(32)? >> 0;
         self.request_id = (u64::from(upper_id) << 32) + u64::from(lower_id);
@@ -67,7 +69,7 @@ impl EventDecoder<Lsb0> for InteractionResponse {
         // Read bytes till the end.
         let mut bytes = Vec::<u8>::new();
 
-        for _ in 0..self.decoder.frame.len() / 8 {
+        for _ in 0..(frame.data_size - 64) / 8 {
             bytes.push(self.decoder.read_data(8)? as u8);
         }
 
@@ -82,8 +84,11 @@ impl EventDecoder<Lsb0> for InteractionResponse {
     }
 
     fn get_responses(
-        &self,
-    ) -> Result<Vec<Box<dyn EventEncoder<<Lsb0 as BitReversible>::Opposite>>>, Error> {
+        &self
+    ) -> Result<
+        Vec<Box<dyn EventEncoder<<Msb0 as BitReversible>::Opposite>>>,
+        Error
+    > {
         Ok(Vec::new())
     }
 }

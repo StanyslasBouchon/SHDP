@@ -1,7 +1,7 @@
-use super::errors::{Error, ErrorKind};
+use super::errors::{ Error, ErrorKind };
 
 /// Version is an enum that defines the SHDP versions available.
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Version {
     /// Version 1.
     V1,
@@ -12,11 +12,12 @@ impl Version {
     pub fn from_u8(value: u8) -> Result<Self, Error> {
         match value {
             1 => Ok(Self::V1),
-            _ => Err(Error {
-                code: 0b1010,
-                message: format!("Unknown version: {}", value),
-                kind: ErrorKind::UnknownVersion,
-            }),
+            _ =>
+                Err(Error {
+                    code: 0b1010,
+                    message: format!("Unknown version: {}", value),
+                    kind: ErrorKind::UnknownVersion,
+                }),
         }
     }
 

@@ -2,16 +2,20 @@
 //! Defines everything for the 0x0005 event.
 //!
 
-use bitvec::order::Msb0;
+use bitvec::order::Lsb0;
 use serde_json::Value;
 
-use crate::protocol::prelude::common::{bits::BitEncoder, error::Error, event::EventEncoder};
+use crate::protocol::prelude::common::{
+    bits::BitEncoder,
+    error::Error,
+    event::EventEncoder,
+};
 
 ///
 /// Describe an interaction request.
 ///
 pub struct InteractionRequest {
-    encoder: BitEncoder<Msb0>,
+    encoder: BitEncoder<Lsb0>,
     request_id: u64,
     function_name: String,
     parent_name: String,
@@ -55,7 +59,7 @@ impl InteractionRequest {
         parent_name: String,
         object_id: Option<i32>,
         params: Option<Value>,
-        token: Option<String>,
+        token: Option<String>
     ) -> Self {
         if cfg!(feature = "debug") {
             println!(
@@ -70,7 +74,7 @@ impl InteractionRequest {
         }
 
         InteractionRequest {
-            encoder: BitEncoder::<Msb0>::new(),
+            encoder: BitEncoder::<Lsb0>::new(),
             request_id,
             function_name,
             parent_name,
@@ -81,7 +85,7 @@ impl InteractionRequest {
     }
 }
 
-impl EventEncoder<Msb0> for InteractionRequest {
+impl EventEncoder<Lsb0> for InteractionRequest {
     fn encode(&mut self) -> Result<(), Error> {
         let request_id = self.request_id as u64;
         let upper_id = ((request_id >> 32) & 0xffffffff) as u32;
@@ -96,26 +100,29 @@ impl EventEncoder<Msb0> for InteractionRequest {
 
         self.encoder.add_data(0, 8)?;
         if self.token.is_some() {
-            self.encoder
-                .add_bytes(self.token.as_ref().unwrap().to_string().as_bytes())?;
+            self.encoder.add_bytes(
+                self.token.as_ref().unwrap().to_string().as_bytes()
+            )?;
         }
 
         self.encoder.add_data(0, 8)?;
         if self.object_id.is_some() {
-            self.encoder
-                .add_bytes(self.object_id.unwrap().to_string().as_bytes())?;
+            self.encoder.add_bytes(
+                self.object_id.unwrap().to_string().as_bytes()
+            )?;
         }
 
         self.encoder.add_data(0, 8)?;
         if self.params.is_some() {
-            self.encoder
-                .add_bytes(self.params.as_ref().unwrap().to_string().as_bytes())?;
+            self.encoder.add_bytes(
+                self.params.as_ref().unwrap().to_string().as_bytes()
+            )?;
         }
 
         Ok(())
     }
 
-    fn get_encoder(&self) -> &BitEncoder<Msb0> {
+    fn get_encoder(&self) -> &BitEncoder<Lsb0> {
         &self.encoder
     }
 

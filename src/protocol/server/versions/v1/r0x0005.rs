@@ -2,16 +2,16 @@
 //! Defines everything for the 0x0005 event.
 //!
 
-use bitvec::order::{Lsb0, Msb0};
+use bitvec::order::{ Lsb0, Msb0 };
 use serde_json::Value;
 
 use crate::protocol::{
-    errors::{Error, ErrorKind},
+    errors::{ Error, ErrorKind },
     managers::{
         bits::decoder::BitDecoder,
-        event::{EventDecoder, EventEncoder},
+        event::{ EventDecoder, EventEncoder },
     },
-    prelude::common::{bits::Frame, registry::EVENT_REGISTRY_MSB},
+    prelude::common::{ bits::Frame, registry::EVENT_REGISTRY_MSB },
 };
 
 use super::c0x0006::InteractionResponse;
@@ -68,7 +68,9 @@ impl InteractionRequest {
     ///
     pub fn new(decoder: BitDecoder<Msb0>) -> Self {
         if cfg!(feature = "debug") {
-            println!("[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;125m0x0005\x1b[0m received");
+            println!(
+                "[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;125m0x0005\x1b[0m received"
+            );
         }
 
         InteractionRequest {
@@ -84,13 +86,13 @@ impl InteractionRequest {
 }
 
 impl EventDecoder<Msb0> for InteractionRequest {
-    fn decode(&mut self, _: Frame<Msb0>) -> Result<(), Error> {
+    fn decode(&mut self, frame: Frame<Msb0>) -> Result<(), Error> {
         let upper_request_id = self.decoder.read_data(32)?;
         let lower_request_id = self.decoder.read_data(32)?;
-        self.request_id = (upper_request_id as u64) << 32 | lower_request_id as u64;
+        self.request_id =
+            ((upper_request_id as u64) << 32) | (lower_request_id as u64);
 
-        let bit_length = self.decoder.frame.len() - 64;
-        let byte_length = bit_length / 8;
+        let byte_length = (frame.data_size - 64) / 8;
         let mut data = Vec::<u8>::new();
 
         for _ in 0..byte_length {
@@ -98,7 +100,10 @@ impl EventDecoder<Msb0> for InteractionRequest {
             data.push(byte);
         }
 
-        let string: String = data.iter().map(|&b| b as char).collect();
+        let string: String = data
+            .iter()
+            .map(|&b| b as char)
+            .collect();
         let parts: Vec<&str> = string.split('\x00').collect();
 
         self.function_name = String::from(parts[0]);
@@ -139,7 +144,11 @@ impl EventDecoder<Msb0> for InteractionRequest {
         if cfg!(feature = "debug") {
             println!(
                 "[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;125m0x0005\x1b[0m: function_name: {}, table: {}, object_id: {:?}, params: {:?}, token: {:?}",
-                self.function_name, self.parent_name, self.object_id, self.params, self.token
+                self.function_name,
+                self.parent_name,
+                self.object_id,
+                self.params,
+                self.token
             );
         }
 
@@ -147,22 +156,21 @@ impl EventDecoder<Msb0> for InteractionRequest {
     }
 
     fn get_responses(&self) -> Result<Vec<Box<dyn EventEncoder<Lsb0>>>, Error> {
-        let args = match EVENT_REGISTRY_MSB.lock().unwrap().get_listener((1, 0x0005)) {
+        let args = match
+            EVENT_REGISTRY_MSB.lock().unwrap().get_listener((1, 0x0005))
+        {
             Some(listener) => listener(Box::new(self.clone())),
             None => {
                 return Err(Error {
                     code: 404,
                     message: "Listener not found for 0x0005".to_string(),
                     kind: ErrorKind::NotFound,
-                })
+                });
             }
         };
 
         let response = args.get(0).unwrap().to_option_value()?;
 
-        Ok(vec![Box::new(InteractionResponse::new(
-            self.request_id,
-            response,
-        ))])
+        Ok(vec![Box::new(InteractionResponse::new(self.request_id, response))])
     }
 }

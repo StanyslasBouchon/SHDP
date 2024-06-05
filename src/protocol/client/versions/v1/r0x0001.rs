@@ -7,11 +7,11 @@ use std::collections::HashMap;
 use bitvec::order::Msb0;
 
 use crate::protocol::{
-    client::bits::utils::{FyveImpl, OperatingCode, OperationCode},
+    client::bits::utils::{ FyveImpl, OperatingCode, OperationCode },
     prelude::common::{
-        bits::{util::BitReversible, BitDecoder, Frame},
+        bits::{ util::BitReversible, BitDecoder, Frame },
         error::Error,
-        event::{EventDecoder, EventEncoder},
+        event::{ EventDecoder, EventEncoder },
     },
 };
 
@@ -46,11 +46,12 @@ impl HtmlContent {
     pub fn get_child(&self) -> HtmlTag {
         match self {
             HtmlContent::Child(tag) => tag.clone(),
-            _ => HtmlTag {
-                name: String::new(),
-                attributes: HashMap::new(),
-                data: Vec::new(),
-            },
+            _ =>
+                HtmlTag {
+                    name: String::new(),
+                    attributes: HashMap::new(),
+                    data: Vec::new(),
+                },
         }
     }
 }
@@ -62,11 +63,11 @@ impl HtmlContent {
 #[derive(Clone, Debug)]
 pub struct HtmlTag {
     /// The name of the tag.
-    name: String,
+    pub name: String,
     /// The attributes of the tag.
-    attributes: HashMap<String, String>,
+    pub attributes: HashMap<String, String>,
     /// The data of the tag.
-    data: Vec<HtmlContent>,
+    pub data: Vec<HtmlContent>,
 }
 
 impl HtmlTag {
@@ -141,7 +142,9 @@ impl HtmlFileResponse {
     /// ```
     pub fn new(decoder: BitDecoder<Msb0>) -> Self {
         if cfg!(feature = "debug") {
-            println!("[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0001\x1b[0m received");
+            println!(
+                "[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0001\x1b[0m received"
+            );
         }
 
         HtmlFileResponse {
@@ -162,8 +165,6 @@ impl HtmlFileResponse {
             bytes.push(self.decoder.read_data(8)? as u8);
         }
 
-        println!("{:?}", bytes);
-
         match String::from_utf8(bytes) {
             Ok(name) => Ok(name),
             Err(_) => {
@@ -180,7 +181,7 @@ impl HtmlFileResponse {
 impl EventDecoder<Msb0> for HtmlFileResponse {
     fn decode(
         &mut self,
-        frame: Frame<Msb0>,
+        frame: Frame<Msb0>
     ) -> Result<(), crate::protocol::prelude::common::error::Error> {
         let mut bytes = Vec::<u8>::new();
         let mut temp_byte: u8;
@@ -219,13 +220,11 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
         tags_controlled.push(self.parent.clone());
 
         loop {
-            if self.decoder.position >= frame.data_size.into() {
+            if self.decoder.position >= (frame.data_size + 56).into() {
                 break;
             }
 
             let op_code = FyveImpl::get_op(&mut self.decoder)?;
-
-            println!("{:?}", op_code);
 
             if op_code.kind == OperatingCode::System {
                 match op_code.code {
@@ -256,7 +255,9 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
                     Some(OperationCode::Unknown) => {
                         return Err(Error {
                             code: 400,
-                            message: String::from(format!("Unknown operation code: {:?}", op_code)),
+                            message: String::from(
+                                format!("Unknown operation code: {:?}", op_code)
+                            ),
                             kind: crate::protocol::prelude::common::error::ErrorKind::BadRequest,
                         });
                     }
@@ -278,18 +279,23 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
                     tag.add_attribute(attribute_name.clone(), text.clone());
                     attribute_name = String::new();
                     text = String::new();
-                } else if is_in_attributes && text.is_empty() && !entered_in_attributes {
+                } else if
+                    is_in_attributes &&
+                    text.is_empty() &&
+                    !entered_in_attributes
+                {
                     let tag = HtmlTag {
                         name: tag_name.clone(),
                         attributes: HashMap::new(),
                         data: Vec::new(),
                     };
 
+                    tag_name = String::new();
+
                     tags_controlled
                         .get_mut(0)
                         .unwrap()
-                        .data
-                        .push(HtmlContent::Child(tag.clone()));
+                        .data.push(HtmlContent::Child(tag.clone()));
                     tags_controlled.insert(0, tag);
 
                     entered_in_attributes = true;
@@ -299,8 +305,8 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
                     tags_controlled
                         .get_mut(0)
                         .unwrap()
-                        .data
-                        .push(HtmlContent::Text(text.clone()));
+                        .data.push(HtmlContent::Text(text.clone()));
+
                     entered_in_data = true;
                 }
 
@@ -311,14 +317,13 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
                         data: Vec::new(),
                     };
 
-                    tags_controlled
-                        .get_mut(0)
-                        .unwrap()
-                        .data
-                        .push(HtmlContent::Child(tag.clone()));
-                    tags_controlled.insert(0, tag);
+                    tag_name = String::new();
 
-                    entered_in_data = true;
+                    // tags_controlled
+                    //     .get_mut(0)
+                    //     .unwrap()
+                    //     .data.push(HtmlContent::Child(tag.clone()));
+                    tags_controlled.insert(0, tag);
                 } else if !is_in_data {
                     entered_in_data = false;
                 }
@@ -330,7 +335,15 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
                 if !is_in_tag && !is_in_attributes && !is_in_data {
                     tag_name = String::new();
                     attribute_name = String::new();
-                    is_in_data = false;
+                    is_in_data = true;
+
+                    if tags_controlled.len() >= 2 {
+                        let last_tag = tags_controlled.get(0).unwrap().clone();
+                        tags_controlled
+                            .get_mut(1)
+                            .unwrap()
+                            .add_data(HtmlContent::Child(last_tag));
+                    }
 
                     if !tags_controlled.is_empty() {
                         tags_controlled.remove(0);
@@ -340,7 +353,6 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
 
             if op_code.kind == OperatingCode::Character {
                 let char = op_code.get_char()?;
-                println!("{:?}", char);
 
                 if is_in_tag {
                     tag_name.push(char);
@@ -358,8 +370,11 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
     }
 
     fn get_responses(
-        &self,
-    ) -> Result<Vec<Box<dyn EventEncoder<<Msb0 as BitReversible>::Opposite>>>, Error> {
+        &self
+    ) -> Result<
+        Vec<Box<dyn EventEncoder<<Msb0 as BitReversible>::Opposite>>>,
+        Error
+    > {
         Ok(Vec::new())
     }
 }

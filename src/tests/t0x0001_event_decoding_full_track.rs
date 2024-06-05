@@ -1,10 +1,10 @@
-use bitvec::order::{Lsb0, Msb0};
+use bitvec::order::{ Lsb0, Msb0 };
 
 use crate::{
     client::prelude::versions::v1::r0x0001::HtmlTag,
     protocol::{
         prelude::common::{
-            bits::{BitDecoder, Frame, FrameDecoder, FrameEncoder},
+            bits::{ BitDecoder, Frame, FrameDecoder, FrameEncoder },
             event::EventDecoder,
         },
         versions::Version,
@@ -14,15 +14,19 @@ use crate::{
 #[test]
 fn test() {
     // First, we create the frame closure to wrap the data.
-    let mut encoder: FrameEncoder<Lsb0> = FrameEncoder::<Lsb0>::new(Version::V1.to_u8()).unwrap();
+    let mut encoder: FrameEncoder<Lsb0> = FrameEncoder::<Lsb0>
+        ::new(Version::V1.to_u8())
+        .unwrap();
 
     // Then, we encode the data, and append it to the frame.
     let frame: Vec<u8> = encoder
-        .encode(Box::new(
-            crate::server::prelude::versions::v1::c0x0001::HtmlFileResponse::new(
-                "src/tests/res/test.html".to_string(),
-            ),
-        ))
+        .encode(
+            Box::new(
+                crate::server::prelude::versions::v1::c0x0001::HtmlFileResponse::new(
+                    "src/tests/res/test.html".to_string()
+                )
+            )
+        )
         .unwrap();
 
     // Now, we create the main decoder.
@@ -40,15 +44,16 @@ fn test() {
     // Then, we create the data wrapper based on the event id and the frame version.
     // Here, the event id and the frame version are not checked because we already know these values due to test purposes.
     let mut decoded_data =
-        crate::client::prelude::versions::v1::r0x0001::HtmlFileResponse::new(decoder);
+        crate::client::prelude::versions::v1::r0x0001::HtmlFileResponse::new(
+            decoder
+        );
 
     // We set the parent tag to the html tag.
-    decoded_data.parent = HtmlTag::new("html".to_string());
+    decoded_data.parent = HtmlTag::new("container".to_string());
 
     // Finally, we decode the data.
     decoded_data.decode(data).unwrap();
 
-    println!("{:?}", decoded_data.parent); // FIXME: HtmlTag { name: "htmlp", attributes: {}, data: [Text("Test")] }
-
     assert_eq!(decoded_data.name, "test.html".to_string());
+    assert_eq!(decoded_data.parent.name, "container".to_string());
 }
