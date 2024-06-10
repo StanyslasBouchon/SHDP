@@ -1,4 +1,7 @@
-use std::{net::TcpStream, sync::Arc};
+use std::{
+    net::TcpStream,
+    sync::{Arc, Mutex},
+};
 
 use openssl::ssl::{Ssl, SslConnector, SslFiletype, SslMethod, SslStream};
 use tokio::sync::Mutex;
@@ -61,7 +64,7 @@ pub async fn connect(ip: String, port: String, cert: Certificate) -> Result<(), 
             });
         }
     };
-    let static_stream: &'static mut TcpStream = Box::leak(Box::new(stream));
+    let static_stream = Arc::new(Mutex::new(stream));
 
     DEVICES.lock().unwrap().insert(
         (ip.clone(), port.clone()),
@@ -77,7 +80,7 @@ pub async fn connect(ip: String, port: String, cert: Certificate) -> Result<(), 
         .get_std_client();
 
     let ssl = Ssl::new(connector.context()).unwrap();
-    let tls_stream = match SslStream::new(ssl, real_stream) {
+    let tls_stream = match SslStream::new(ssl, &mut *real_stream.lock().unwrap()) {
         Ok(tls_stream) => tls_stream,
         Err(e) => {
             println!("[SHDP:TLS] Error creating TLS stream: {:?}", e);

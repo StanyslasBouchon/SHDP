@@ -8,6 +8,9 @@ pub mod common {
         //! It is used to handle utility functions that may be used by the protocol.
         //!
 
+        use super::error::Error;
+        use crate::protocol::prelude::common::error::ErrorKind;
+
         ///
         /// Represents a TLS certificate.
         ///
@@ -31,9 +34,10 @@ pub mod common {
             #[cfg(feature = "ws-server")]
             StdServer(async_std::net::TcpListener),
             #[cfg(feature = "tcp-client")]
-            TokioClient(&'a mut tokio::net::TcpStream),
+            #[allow(dead_code)]
+            TokioClient(Arc<std::sync::Mutex<tokio::net::TcpStream>>),
             #[cfg(feature = "ws-client")]
-            StdClient(&'a mut std::net::TcpStream),
+            StdClient(Arc<std::sync::Mutex<std::net::TcpStream>>),
             #[cfg(feature = "ws-server")]
             _Phantom(PhantomData<&'a ()>),
         }
@@ -57,20 +61,23 @@ pub mod common {
             }
 
             #[cfg(feature = "tcp-client")]
-            pub(crate) fn get_tokio_client(&mut self) -> &mut tokio::net::TcpStream {
+            #[allow(dead_code)]
+            pub(crate) fn get_tokio_client(
+                &mut self,
+            ) -> Arc<std::sync::Mutex<tokio::net::TcpStream>> {
                 match self {
-                    Listener::TokioClient(listener) => listener,
+                    Listener::TokioClient(listener) => listener.clone(),
                     #[cfg(feature = "ws-client")]
                     _ => panic!("Listener is not a tokio stream"),
                 }
             }
 
             #[cfg(feature = "ws-client")]
-            pub(crate) fn get_std_client(&mut self) -> &mut std::net::TcpStream {
+            pub(crate) fn get_std_client(&mut self) -> Arc<std::sync::Mutex<std::net::TcpStream>> {
                 match self {
-                    Listener::StdClient(listener) => listener,
+                    Listener::StdClient(listener) => listener.clone(),
                     #[cfg(feature = "tcp-client")]
-                    _ => panic!("Listener is not an std stream"),
+                    _ => panic!("Listener is not a std stream"),
                 }
             }
         }
@@ -107,11 +114,11 @@ pub mod common {
                     Listener::StdServer(listener) => drop(listener),
                     #[cfg(feature = "tcp-client")]
                     Listener::TokioClient(listener) => {
-                        let _ = listener.shutdown().await;
+                        let _ = listener.lock().unwrap().shutdown().await;
                     }
                     #[cfg(feature = "ws-client")]
                     Listener::StdClient(listener) => {
-                        let _ = listener.shutdown(std::net::Shutdown::Both);
+                        let _ = listener.lock().unwrap().shutdown(std::net::Shutdown::Both);
                     }
                     #[cfg(feature = "ws-server")]
                     Listener::_Phantom(_) => {

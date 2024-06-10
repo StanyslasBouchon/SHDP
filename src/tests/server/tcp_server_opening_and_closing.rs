@@ -11,7 +11,7 @@ async fn test() {
         match timeout(timeout_duration, listen_future).await {
             Ok(result) => result,
             Err(_) => {
-                println!("Timeout reached, stopping the listener");
+                println!("TCPS: Timeout reached, stopping the listener");
                 stop(String::from("127.0.0.1"), String::from("9999")).await;
                 None
             }
@@ -24,11 +24,11 @@ async fn test() {
 async fn start() -> Option<()> {
     match listen(String::from("9999")).await {
         Ok(_) => {
-            println!("Listen succeeded");
+            println!("TCPS: Listen succeeded");
             Some(())
         }
         Err(e) => {
-            println!("Error: {:?}", e);
+            println!("TCPS: Error: {:?}", e);
             stop(String::from("127.0.0.1"), String::from("9999")).await;
             assert!(false);
             None
