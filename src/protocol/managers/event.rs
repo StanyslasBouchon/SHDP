@@ -1,3 +1,5 @@
+use std::any::Any;
+
 #[allow(unused_imports)]
 use bitvec::order::BitOrder;
 
@@ -117,7 +119,7 @@ pub trait EventEncoder<O: BitReversible> {
 ///     }
 /// }
 /// ```
-pub trait EventDecoder<R: BitReversible> {
+pub trait EventDecoder<R: BitReversible>: Any {
     ///
     /// Decode the frame into the event.
     ///
