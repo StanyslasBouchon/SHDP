@@ -63,29 +63,20 @@ pub async fn connect(ip: String, port: String) -> Result<(), Error> {
             });
         }
     };
-    let static_stream = Arc::new(Mutex::new(stream));
 
-    DEVICES.lock().unwrap().insert(
-        (ip.clone(), port.clone()),
-        Listener::StdClient(static_stream),
-    );
+    DEVICES
+        .lock()
+        .unwrap()
+        .insert((ip.clone(), port.clone()), Listener::StdClient(stream));
 
     println!("[SHDP:WS] Connected to {}:{}", ip.clone(), port.clone());
 
     let mut devices = DEVICES.lock().unwrap();
-    let real_stream = match devices.get_mut(&(ip.clone(), port.clone())) {
-        Some(stream) => {
-            let mut tmp = stream.get_std_client().lock().unwrap();
-            &mut *tmp
-        }
-        None => {
-            return Err(Error {
-                code: 0,
-                message: "Stream not found".to_string(),
-                kind: ErrorKind::NotFound,
-            });
-        }
-    };
+
+    let real_stream = devices
+        .get_mut(&(ip.clone(), port.clone()))
+        .unwrap()
+        .get_std_client();
 
     let (ws_stream, _) = match client(
         match format!("ws://{}:{}", ip.clone(), port.clone()).into_client_request() {
@@ -165,7 +156,7 @@ pub async fn send_raw_event(
 
     let frame = encoder.encode(event).unwrap();
 
-    match stream.lock().unwrap().write_all(&frame) {
+    match stream.write_all(&frame) {
         Ok(_) => (),
         Err(e) => {
             println!("[SHDP:WS] Error writing to stream: {}", e);

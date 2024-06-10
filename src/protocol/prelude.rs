@@ -8,9 +8,6 @@ pub mod common {
         //! It is used to handle utility functions that may be used by the protocol.
         //!
 
-        use super::error::Error;
-        use crate::protocol::prelude::common::error::ErrorKind;
-
         ///
         /// Represents a TLS certificate.
         ///
@@ -37,7 +34,7 @@ pub mod common {
             #[allow(dead_code)]
             TokioClient(Arc<std::sync::Mutex<tokio::net::TcpStream>>),
             #[cfg(feature = "ws-client")]
-            StdClient(Arc<std::sync::Mutex<std::net::TcpStream>>),
+            StdClient(std::net::TcpStream),
             #[cfg(feature = "ws-server")]
             _Phantom(PhantomData<&'a ()>),
         }
@@ -73,9 +70,9 @@ pub mod common {
             }
 
             #[cfg(feature = "ws-client")]
-            pub(crate) fn get_std_client(&mut self) -> Arc<std::sync::Mutex<std::net::TcpStream>> {
+            pub(crate) fn get_std_client(&mut self) -> &mut std::net::TcpStream {
                 match self {
-                    Listener::StdClient(listener) => listener.clone(),
+                    Listener::StdClient(listener) => listener,
                     #[cfg(feature = "tcp-client")]
                     _ => panic!("Listener is not a std stream"),
                 }
@@ -118,7 +115,7 @@ pub mod common {
                     }
                     #[cfg(feature = "ws-client")]
                     Listener::StdClient(listener) => {
-                        let _ = listener.lock().unwrap().shutdown(std::net::Shutdown::Both);
+                        let _ = listener.shutdown(std::net::Shutdown::Both);
                     }
                     #[cfg(feature = "ws-server")]
                     Listener::_Phantom(_) => {

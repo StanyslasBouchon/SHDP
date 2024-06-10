@@ -4,7 +4,6 @@ use std::{
 };
 
 use openssl::ssl::{Ssl, SslConnector, SslFiletype, SslMethod, SslStream};
-use tokio::sync::Mutex;
 use tungstenite::client;
 use tungstenite::client::IntoClientRequest;
 
@@ -64,12 +63,11 @@ pub async fn connect(ip: String, port: String, cert: Certificate) -> Result<(), 
             });
         }
     };
-    let static_stream = Arc::new(Mutex::new(stream));
 
-    DEVICES.lock().unwrap().insert(
-        (ip.clone(), port.clone()),
-        Listener::StdClient(static_stream),
-    );
+    DEVICES
+        .lock()
+        .unwrap()
+        .insert((ip.clone(), port.clone()), Listener::StdClient(stream));
 
     println!("[SHDP:WSS] Connected to {}:{}", ip.clone(), port.clone());
 
@@ -80,7 +78,7 @@ pub async fn connect(ip: String, port: String, cert: Certificate) -> Result<(), 
         .get_std_client();
 
     let ssl = Ssl::new(connector.context()).unwrap();
-    let tls_stream = match SslStream::new(ssl, &mut *real_stream.lock().unwrap()) {
+    let tls_stream = match SslStream::new(ssl, &mut *real_stream) {
         Ok(tls_stream) => tls_stream,
         Err(e) => {
             println!("[SHDP:TLS] Error creating TLS stream: {:?}", e);
