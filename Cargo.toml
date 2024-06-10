@@ -3,6 +3,10 @@ name = "shdp"
 version = "1.1.6"
 authors = ["Devling"]
 edition = "2021"
+license = "MIT"
+description = "A new protocol (SHDP)"
+repository = "https://github.com/StanyslasBouchon/SHDP/tree/master"
+readme = "README.md"
 
 [dependencies]
 async-std = { version = "1.12.0", features = ["unstable"], optional = true }
