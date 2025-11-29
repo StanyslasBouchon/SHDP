@@ -1,8 +1,8 @@
-use bitvec::order::{ Lsb0, Msb0 };
+use bitvec::order::{Lsb0, Msb0};
 
 use crate::protocol::{
     prelude::common::{
-        bits::{ BitDecoder, Frame, FrameDecoder, FrameEncoder },
+        bits::{BitDecoder, Frame, FrameDecoder, FrameEncoder},
         event::EventDecoder,
     },
     versions::Version,
@@ -11,24 +11,20 @@ use crate::protocol::{
 #[test]
 fn test() {
     // First, we create the frame closure to wrap the data.
-    let mut encoder: FrameEncoder<Lsb0> = FrameEncoder::<Lsb0>
-        ::new(Version::V1.to_u8())
-        .unwrap();
+    let mut encoder: FrameEncoder<Lsb0> = FrameEncoder::<Lsb0>::new(Version::V1.to_u8()).unwrap();
 
     // Then, we encode the data, and append it to the frame.
     let frame: Vec<u8> = encoder
-        .encode(
-            Box::new(
-                crate::client::prelude::versions::v1::c0x0005::InteractionRequest::new(
-                    0,
-                    "test".to_string(),
-                    "Test".to_string(),
-                    None,
-                    None,
-                    None
-                )
-            )
-        )
+        .encode(Box::new(
+            crate::client::prelude::versions::v1::c0x0005::InteractionRequest::new(
+                0,
+                "test".to_string(),
+                "Test".to_string(),
+                None,
+                None,
+                None,
+            ),
+        ))
         .unwrap();
 
     // Now, we create the main decoder.
@@ -46,9 +42,7 @@ fn test() {
     // Then, we create the data wrapper based on the event id and the frame version.
     // Here, the event id and the frame version are not checked because we already know these values due to test purposes.
     let mut decoded_data =
-        crate::server::prelude::versions::v1::r0x0005::InteractionRequest::new(
-            decoder
-        );
+        crate::server::prelude::versions::v1::r0x0005::InteractionRequest::new(decoder);
 
     // Finally, we decode the data.
     decoded_data.decode(data).unwrap();

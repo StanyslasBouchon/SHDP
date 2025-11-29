@@ -64,18 +64,41 @@ pub async fn connect(ip: String, port: String) -> Result<(), Error> {
         }
     };
 
-    DEVICES
-        .lock()
-        .unwrap()
-        .insert((ip.clone(), port.clone()), Listener::StdClient(stream));
+    println!("[SHDP:WS] Connecting with ip: {}, port: {}", ip, port);
 
-    println!("[SHDP:WS] Connected to {}:{}", ip.clone(), port.clone());
+    // Utiliser l'adresse locale du stream comme clé pour éviter les conflits avec le serveur
+    let local_addr = stream.local_addr().map_err(|e| Error {
+        code: 0,
+        message: e.to_string(),
+        kind: ErrorKind::UserDefined(Box::new(e)),
+    })?;
+    let key = (local_addr.ip().to_string(), local_addr.port().to_string());
 
-    let mut devices = DEVICES.lock().unwrap();
+    {
+        let mut devices = DEVICES.lock().map_err(|e| Error {
+            code: 0,
+            message: format!("Mutex poisoned: {:?}", e),
+            kind: ErrorKind::UserDefined(Box::new(e)),
+        })?;
+        devices.insert(key.clone(), Listener::StdClient(stream));
+    }
+
+    let mut devices = DEVICES.lock().map_err(|e| Error {
+        code: 0,
+        message: format!("Mutex poisoned: {:?}", e),
+        kind: ErrorKind::UserDefined(Box::new(e)),
+    })?;
 
     let real_stream = devices
-        .get_mut(&(ip.clone(), port.clone()))
-        .unwrap()
+        .get_mut(&key)
+        .ok_or_else(|| Error {
+            code: 0,
+            message: "Stream not found in DEVICES".to_string(),
+            kind: ErrorKind::UserDefined(Box::new(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Stream not found",
+            ))),
+        })?
         .get_std_client();
 
     let (ws_stream, _) = match client(
@@ -202,7 +225,7 @@ async fn handle_message<IO: Read + Write + Unpin>(
     message: Message,
 ) -> Result<(), Error> {
     let data = message.into_data();
-    let decoder = BitDecoder::<Msb0>::new(data);
+    let decoder = BitDecoder::<Msb0>::new(data.into());
     let data = FrameDecoder::<Msb0>::new(decoder.clone()).decode().unwrap();
 
     let registry = EVENT_REGISTRY_MSB.lock().unwrap();
@@ -246,7 +269,7 @@ async fn handle_message<IO: Read + Write + Unpin>(
         let frame = encoder.encode(response).unwrap();
 
         let mut guard = ws.lock().unwrap();
-        if let Err(e) = guard.send(Message::Binary(frame)) {
+        if let Err(e) = guard.send(Message::Binary(frame.into())) {
             println!("[SHDP:WS] Error sending response: {}", e);
             return Err(Error {
                 code: 0,

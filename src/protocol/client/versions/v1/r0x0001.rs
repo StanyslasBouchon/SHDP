@@ -7,11 +7,11 @@ use std::collections::HashMap;
 use bitvec::order::Msb0;
 
 use crate::protocol::{
-    client::bits::utils::{ FyveImpl, OperatingCode, OperationCode },
+    client::bits::utils::{FyveImpl, OperatingCode, OperationCode},
     prelude::common::{
-        bits::{ util::BitReversible, BitDecoder, Frame },
+        bits::{util::BitReversible, BitDecoder, Frame},
         error::Error,
-        event::{ EventDecoder, EventEncoder },
+        event::{EventDecoder, EventEncoder},
     },
 };
 
@@ -46,12 +46,11 @@ impl HtmlContent {
     pub fn get_child(&self) -> HtmlTag {
         match self {
             HtmlContent::Child(tag) => tag.clone(),
-            _ =>
-                HtmlTag {
-                    name: String::new(),
-                    attributes: HashMap::new(),
-                    data: Vec::new(),
-                },
+            _ => HtmlTag {
+                name: String::new(),
+                attributes: HashMap::new(),
+                data: Vec::new(),
+            },
         }
     }
 }
@@ -142,9 +141,7 @@ impl HtmlFileResponse {
     /// ```
     pub fn new(decoder: BitDecoder<Msb0>) -> Self {
         if cfg!(feature = "debug") {
-            println!(
-                "[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0001\x1b[0m received"
-            );
+            println!("[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0001\x1b[0m received");
         }
 
         HtmlFileResponse {
@@ -181,7 +178,7 @@ impl HtmlFileResponse {
 impl EventDecoder<Msb0> for HtmlFileResponse {
     fn decode(
         &mut self,
-        frame: Frame<Msb0>
+        frame: Frame<Msb0>,
     ) -> Result<(), crate::protocol::prelude::common::error::Error> {
         let mut bytes = Vec::<u8>::new();
         let mut temp_byte: u8;
@@ -255,9 +252,7 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
                     Some(OperationCode::Unknown) => {
                         return Err(Error {
                             code: 400,
-                            message: String::from(
-                                format!("Unknown operation code: {:?}", op_code)
-                            ),
+                            message: String::from(format!("Unknown operation code: {:?}", op_code)),
                             kind: crate::protocol::prelude::common::error::ErrorKind::BadRequest,
                         });
                     }
@@ -279,11 +274,7 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
                     tag.add_attribute(attribute_name.clone(), text.clone());
                     attribute_name = String::new();
                     text = String::new();
-                } else if
-                    is_in_attributes &&
-                    text.is_empty() &&
-                    !entered_in_attributes
-                {
+                } else if is_in_attributes && text.is_empty() && !entered_in_attributes {
                     let tag = HtmlTag {
                         name: tag_name.clone(),
                         attributes: HashMap::new(),
@@ -295,7 +286,8 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
                     tags_controlled
                         .get_mut(0)
                         .unwrap()
-                        .data.push(HtmlContent::Child(tag.clone()));
+                        .data
+                        .push(HtmlContent::Child(tag.clone()));
                     tags_controlled.insert(0, tag);
 
                     entered_in_attributes = true;
@@ -305,7 +297,8 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
                     tags_controlled
                         .get_mut(0)
                         .unwrap()
-                        .data.push(HtmlContent::Text(text.clone()));
+                        .data
+                        .push(HtmlContent::Text(text.clone()));
 
                     entered_in_data = true;
                 }
@@ -370,11 +363,8 @@ impl EventDecoder<Msb0> for HtmlFileResponse {
     }
 
     fn get_responses(
-        &self
-    ) -> Result<
-        Vec<Box<dyn EventEncoder<<Msb0 as BitReversible>::Opposite>>>,
-        Error
-    > {
+        &self,
+    ) -> Result<Vec<Box<dyn EventEncoder<<Msb0 as BitReversible>::Opposite>>>, Error> {
         Ok(Vec::new())
     }
 }

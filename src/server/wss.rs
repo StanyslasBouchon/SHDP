@@ -4,12 +4,12 @@ use std::{
     sync::Arc,
 };
 
-use async_std::net::TcpListener;
 use async_tls::TlsAcceptor;
 use async_tungstenite::accept_async;
 use rustls::{Certificate as RustlsCertificate, PrivateKey, ServerConfig};
 use rustls_pemfile::{certs, read_one, Item};
-use tokio::sync::Mutex;
+use smol::net::TcpListener;
+use tokio::{sync::Mutex, task::spawn_local};
 use tungstenite::Error;
 
 use crate::{
@@ -105,7 +105,7 @@ pub async fn listen(port: String, cert: Certificate) -> Result<(), ShdpError> {
 
         match handle {
             Ok(ws_stream) => {
-                async_std::task::spawn_local(async move {
+                spawn_local(async move {
                     handle_connection(Arc::new(Mutex::new(ws_stream))).await;
                 });
             }
@@ -157,7 +157,7 @@ fn load_acceptor(cert: Certificate) -> Result<TlsAcceptor, Error> {
     let certs = load_certs(&cert.cert_path)?;
     let key = load_private_key(&cert.key_path)?;
 
-    let config: ServerConfig = ServerConfig::builder()
+    let config = ServerConfig::builder()
         .with_safe_defaults()
         .with_no_client_auth()
         .with_single_cert(certs, key)

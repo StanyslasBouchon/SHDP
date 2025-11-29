@@ -84,10 +84,8 @@ impl fmt::Display for ErrorKind {
             ErrorKind::RequestTimeout => write!(f, "RequestTimeout"),
             ErrorKind::Conflict => write!(f, "Conflict"),
             ErrorKind::Gone => write!(f, "Gone"),
-            ErrorKind::RequestEntityTooLarge =>
-                write!(f, "RequestEntityTooLarge"),
-            ErrorKind::RequestedRangeUnsatisfiable =>
-                write!(f, "RequestedRangeUnsatisfiable"),
+            ErrorKind::RequestEntityTooLarge => write!(f, "RequestEntityTooLarge"),
+            ErrorKind::RequestedRangeUnsatisfiable => write!(f, "RequestedRangeUnsatisfiable"),
             ErrorKind::ExpectationFailed => write!(f, "ExpectationFailed"),
             ErrorKind::Expired => write!(f, "Expired"),
             ErrorKind::Locked => write!(f, "Locked"),
@@ -96,8 +94,7 @@ impl fmt::Display for ErrorKind {
             ErrorKind::InternalServerError => write!(f, "InternalServerError"),
             ErrorKind::NotImplemented => write!(f, "NotImplemented"),
             ErrorKind::ServiceUnavailable => write!(f, "ServiceUnavailable"),
-            ErrorKind::SizeConstraintViolation =>
-                write!(f, "SizeConstraintViolation"),
+            ErrorKind::SizeConstraintViolation => write!(f, "SizeConstraintViolation"),
             ErrorKind::ProtocolError => write!(f, "ProtocolError"),
             ErrorKind::UnknownVersion => write!(f, "UnknownVersion"),
             ErrorKind::UserDefined(e) => write!(f, "{}", e),
@@ -131,6 +128,10 @@ pub struct Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Error: [{}]:{} -> {}", self.kind, self.code, self.message)
+        write!(
+            f,
+            "Error: [{}]:{} -> {}",
+            self.kind, self.code, self.message
+        )
     }
 }

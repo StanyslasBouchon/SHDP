@@ -1,10 +1,12 @@
-use crate::{protocol::prelude::common::utils::stop, server::prelude::tcp::listen};
-use async_std::{future::timeout, task};
 use std::time::Duration;
+
+use tokio::time::timeout;
+
+use crate::{protocol::prelude::common::utils::stop, server::prelude::tcp::listen};
 
 #[tokio::test]
 async fn test() {
-    let test_result = task::block_on(async {
+    let test_result = {
         let timeout_duration = Duration::from_secs(2);
         let listen_future = start();
 
@@ -16,7 +18,7 @@ async fn test() {
                 None
             }
         }
-    });
+    };
 
     assert!(test_result.is_none())
 }

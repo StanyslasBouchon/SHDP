@@ -29,7 +29,7 @@ pub mod common {
             #[cfg(feature = "tcp-server")]
             TokioServer(&'a tokio::net::TcpListener),
             #[cfg(feature = "ws-server")]
-            StdServer(async_std::net::TcpListener),
+            StdServer(smol::net::TcpListener),
             #[cfg(feature = "tcp-client")]
             #[allow(dead_code)]
             TokioClient(Arc<std::sync::Mutex<tokio::net::TcpStream>>),
@@ -44,16 +44,15 @@ pub mod common {
             pub(crate) fn get_tokio_server(&self) -> &tokio::net::TcpListener {
                 match self {
                     Listener::TokioServer(listener) => listener,
-                    #[cfg(feature = "ws-server")]
                     _ => panic!("Listener is not a tokio listener"),
                 }
             }
 
-            #[cfg(feature = "ws-server")]
-            pub(crate) fn get_std_server(&self) -> &async_std::net::TcpListener {
+            #[cfg(feature = "wss-server")]
+            pub(crate) fn get_std_server(&self) -> &smol::net::TcpListener {
                 match self {
                     Listener::StdServer(listener) => listener,
-                    _ => panic!("Listener is not an async_std listener"),
+                    _ => panic!("Listener is not an smol listener"),
                 }
             }
 
@@ -64,7 +63,6 @@ pub mod common {
             ) -> Arc<std::sync::Mutex<tokio::net::TcpStream>> {
                 match self {
                     Listener::TokioClient(listener) => listener.clone(),
-                    #[cfg(feature = "ws-client")]
                     _ => panic!("Listener is not a tokio stream"),
                 }
             }
@@ -73,7 +71,6 @@ pub mod common {
             pub(crate) fn get_std_client(&mut self) -> &mut std::net::TcpStream {
                 match self {
                     Listener::StdClient(listener) => listener,
-                    #[cfg(feature = "tcp-client")]
                     _ => panic!("Listener is not a std stream"),
                 }
             }
@@ -102,7 +99,13 @@ pub mod common {
         /// stop(String::from("127.0.0.1"), String::from("8080"));
         /// ```
         pub async fn stop(ip: String, port: String) {
-            let mut devices = DEVICES.lock().unwrap();
+            let mut devices = match DEVICES.lock() {
+                Ok(devices) => devices,
+                Err(poisoned) => {
+                    println!("[SHDP] Mutex poisoned, recovering: {:?}", poisoned);
+                    poisoned.into_inner()
+                }
+            };
             if let Some(listener) = devices.remove(&(ip, port)) {
                 match listener {
                     #[cfg(feature = "tcp-server")]

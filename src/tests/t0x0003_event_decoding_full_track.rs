@@ -1,8 +1,8 @@
-use bitvec::order::{ Lsb0, Msb0 };
+use bitvec::order::{Lsb0, Msb0};
 
 use crate::protocol::{
     prelude::common::{
-        bits::{ BitDecoder, Frame, FrameDecoder, FrameEncoder },
+        bits::{BitDecoder, Frame, FrameDecoder, FrameEncoder},
         event::EventDecoder,
     },
     versions::Version,
@@ -11,21 +11,17 @@ use crate::protocol::{
 #[test]
 fn test() {
     // First, we create the frame closure to wrap the data.
-    let mut encoder: FrameEncoder<Lsb0> = FrameEncoder::<Lsb0>
-        ::new(Version::V1.to_u8())
-        .unwrap();
+    let mut encoder: FrameEncoder<Lsb0> = FrameEncoder::<Lsb0>::new(Version::V1.to_u8()).unwrap();
 
     // Then, we encode the data, and append it to the frame.
     let frame: Vec<u8> = encoder
-        .encode(
-            Box::new(
-                crate::server::prelude::versions::v1::c0x0003::ComponentNeedsResponse::new(
-                    "test".to_string(),
-                    None,
-                    vec!["test.html".to_string(), "text.css".to_string()]
-                )
-            )
-        )
+        .encode(Box::new(
+            crate::server::prelude::versions::v1::c0x0003::ComponentNeedsResponse::new(
+                "test".to_string(),
+                None,
+                vec!["test.html".to_string(), "text.css".to_string()],
+            ),
+        ))
         .unwrap();
 
     // Now, we create the main decoder.
@@ -43,9 +39,7 @@ fn test() {
     // Then, we create the data wrapper based on the event id and the frame version.
     // Here, the event id and the frame version are not checked because we already know these values due to test purposes.
     let mut decoded_data =
-        crate::client::prelude::versions::v1::r0x0003::ComponentNeedsResponse::new(
-            decoder
-        );
+        crate::client::prelude::versions::v1::r0x0003::ComponentNeedsResponse::new(decoder);
 
     // Finally, we decode the data.
     decoded_data.decode(data).unwrap();

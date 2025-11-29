@@ -5,11 +5,11 @@
 use bitvec::order::Msb0;
 
 use crate::protocol::{
-    client::bits::utils::{ FyveImpl, OperatingCode },
+    client::bits::utils::{FyveImpl, OperatingCode},
     prelude::common::{
-        bits::{ util::BitReversible, BitDecoder, Frame },
+        bits::{util::BitReversible, BitDecoder, Frame},
         error::Error,
-        event::{ EventDecoder, EventEncoder },
+        event::{EventDecoder, EventEncoder},
     },
 };
 
@@ -49,9 +49,7 @@ impl FullFyveResponse {
     /// ```
     pub fn new(decoder: BitDecoder<Msb0>) -> Self {
         if cfg!(feature = "debug") {
-            println!(
-                "[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0004\x1b[0m received"
-            );
+            println!("[\x1b[38;5;187mSHDP\x1b[0m] \x1b[38;5;21m0x0004\x1b[0m received");
         }
 
         FullFyveResponse {
@@ -105,11 +103,8 @@ impl EventDecoder<Msb0> for FullFyveResponse {
     }
 
     fn get_responses(
-        &self
-    ) -> Result<
-        Vec<Box<dyn EventEncoder<<Msb0 as BitReversible>::Opposite>>>,
-        Error
-    > {
+        &self,
+    ) -> Result<Vec<Box<dyn EventEncoder<<Msb0 as BitReversible>::Opposite>>>, Error> {
         Ok(Vec::new())
     }
 }

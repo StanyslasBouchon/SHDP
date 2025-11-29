@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bitvec::order::Msb0;
 use lazy_static::lazy_static;
 
-use crate::protocol::prelude::common::{ bits::BitDecoder, error::Error };
+use crate::protocol::prelude::common::{bits::BitDecoder, error::Error};
 
 lazy_static! {
     /// A map of characters to bit vectors.
@@ -276,10 +276,7 @@ pub struct Operation {
 }
 
 impl Operation {
-    fn from(
-        fy: &u8,
-        decoder: &mut BitDecoder<Msb0>
-    ) -> Result<Operation, Error> {
+    fn from(fy: &u8, decoder: &mut BitDecoder<Msb0>) -> Result<Operation, Error> {
         let mut op = OperatingCode::from(fy);
         let mut code: Option<OperationCode> = None;
 

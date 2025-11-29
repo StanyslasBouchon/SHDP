@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use async_std::{net::TcpListener, stream::StreamExt};
 use async_tungstenite::{accept_async, WebSocketStream};
 use bitvec::order::{Lsb0, Msb0};
-use futures::{AsyncRead, AsyncWrite, SinkExt};
+use futures::{AsyncRead, AsyncWrite};
+use smol::{net::TcpListener, stream::StreamExt};
 use tokio::sync::Mutex;
 use tungstenite::Message;
 
@@ -51,30 +51,41 @@ use super::prelude::answer_error;
 /// ```
 pub async fn listen(port: String) -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).await?;
+    let static_listener: &'static TcpListener = Box::leak(Box::new(listener));
 
-    DEVICES.lock().unwrap().insert(
-        ("127.0.0.1".to_string(), port.clone()),
-        Listener::StdServer(listener),
-    );
+    {
+        let mut devices = DEVICES.lock().map_err(|_| {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Mutex poisoned",
+            )) as Box<dyn std::error::Error>
+        })?;
+        devices.insert(
+            ("127.0.0.1".to_string(), port.clone()),
+            Listener::StdServer(static_listener.clone()),
+        );
+    }
 
     println!("[SHDP:WS] Listening on port {}", port.clone());
 
-    while let Ok((stream, _)) = DEVICES
-        .lock()
-        .unwrap()
-        .get(&("127.0.0.1".to_string(), port.clone()))
-        .unwrap()
-        .get_std_server()
-        .accept()
-        .await
-    {
+    loop {
+        let (stream, _) = match static_listener.accept().await {
+            Ok(stream) => stream,
+            Err(e) => {
+                println!("[SHDP:WS] Error accepting connection: {}", e);
+                continue;
+            }
+        };
         let ws = accept_async(stream.clone()).await;
 
         match ws {
             Ok(ws_stream) => {
-                async_std::task::spawn_local(async move {
-                    handle_connection(Arc::new(Mutex::new(ws_stream))).await;
-                });
+                let executor = smol::LocalExecutor::new();
+                executor
+                    .spawn(async move {
+                        handle_connection(Arc::new(Mutex::new(ws_stream))).await;
+                    })
+                    .detach();
             }
             Err(e) => {
                 println!("[SHDP:WS] Error accepting WebSocket connection: {}", e);
@@ -83,8 +94,6 @@ pub async fn listen(port: String) -> Result<(), Box<dyn std::error::Error>> {
 
         println!("[SHDP:WS] New connection from {}", stream.peer_addr()?);
     }
-
-    Ok(())
 }
 
 pub async fn handle_connection<IO: AsyncRead + AsyncWrite + Unpin>(
@@ -112,7 +121,7 @@ pub async fn handle_connection<IO: AsyncRead + AsyncWrite + Unpin>(
             );
 
             let mut guard = ws.lock().await;
-            if let Err(e) = guard.send(Message::Binary(err)).await {
+            if let Err(e) = guard.send(Message::Binary(err.into())).await {
                 println!("[SHDP:WS] Error sending error message: {}", e);
             }
 
@@ -128,33 +137,31 @@ async fn handle_message<IO: AsyncRead + AsyncWrite + Unpin>(
     message: Message,
 ) {
     let data = message.into_data();
-    let decoder = BitDecoder::<Msb0>::new(data);
+    let decoder = BitDecoder::<Msb0>::new(data.into());
     let data = FrameDecoder::<Msb0>::new(decoder.clone()).decode().unwrap();
 
-    let registry = EVENT_REGISTRY_MSB.lock().unwrap();
-    let factory = match registry.get_event((data.version, data.event)) {
-        Some(event) => event,
-        None => {
-            println!(
-                "[SHDP:TCP] Event not found: {} <-> {}",
-                data.version, data.event
-            );
+    let factory = {
+        let registry = EVENT_REGISTRY_MSB.lock().unwrap();
+        match registry.get_event((data.version, data.event)) {
+            Some(event) => *event,
+            None => {
+                drop(registry);
+                let err = answer_error(
+                    data.version,
+                    Error {
+                        code: 404,
+                        message: "Event not found".to_string(),
+                        kind: ErrorKind::NotFound,
+                    },
+                );
 
-            let err = answer_error(
-                data.version,
-                Error {
-                    code: 404,
-                    message: "Event not found".to_string(),
-                    kind: ErrorKind::NotFound,
-                },
-            );
+                let mut guard = ws.lock().await;
+                if let Err(e) = guard.send(Message::Binary(err.into())).await {
+                    println!("[SHDP:WS] Error sending error message: {}", e);
+                }
 
-            let mut guard = ws.lock().await;
-            if let Err(e) = guard.send(Message::Binary(err)).await {
-                println!("[SHDP:WS] Error sending error message: {}", e);
+                return;
             }
-
-            return;
         }
     };
 
@@ -165,7 +172,7 @@ async fn handle_message<IO: AsyncRead + AsyncWrite + Unpin>(
             let err = answer_error(data.version, e);
 
             let mut guard = ws.lock().await;
-            if let Err(e) = guard.send(Message::Binary(err)).await {
+            if let Err(e) = guard.send(Message::Binary(err.into())).await {
                 println!("[SHDP:WS] Error sending error message: {}", e);
             }
 
@@ -179,7 +186,7 @@ async fn handle_message<IO: AsyncRead + AsyncWrite + Unpin>(
             let err = answer_error(data.version, e);
 
             let mut guard = ws.lock().await;
-            if let Err(e) = guard.send(Message::Binary(err)).await {
+            if let Err(e) = guard.send(Message::Binary(err.into())).await {
                 println!("[SHDP:WS] Error sending error message: {}", e);
             }
 
@@ -199,7 +206,7 @@ async fn handle_message<IO: AsyncRead + AsyncWrite + Unpin>(
         let frame = encoder.encode(response).unwrap();
 
         let mut guard = ws.lock().await;
-        if let Err(e) = guard.send(Message::Binary(frame)).await {
+        if let Err(e) = guard.send(Message::Binary(frame.into())).await {
             println!("[SHDP:WS] Error sending response: {}", e);
             return;
         }
